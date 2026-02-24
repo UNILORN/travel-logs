@@ -1,20 +1,212 @@
 'use client'
 
-import type { Trip, Spot } from '@/lib/types'
+import type { LucideIcon } from 'lucide-react'
+import {
+  Bike,
+  Bus,
+  CableCar,
+  Car,
+  Clock,
+  Coffee,
+  Footprints,
+  Map as MapIcon,
+  MapPin,
+  Plane,
+  Plus,
+  Route,
+  Ship,
+  Train,
+  Trash2,
+} from 'lucide-react'
+import type {
+  AreaNode,
+  MoveNode,
+  SpotNode,
+  TimelineNode,
+  TransportType,
+  Trip,
+} from '@/lib/types'
 import { TRANSPORT_LABELS } from '@/lib/types'
 import { useTripContext } from '@/lib/trip-context'
-import { Clock, MapPin, Trash2, Car, Footprints, Train, Bus, Coffee } from 'lucide-react'
 
-const transportIcons: Record<Spot['transport'], typeof Car> = {
+export type AddNodeKind = 'spot' | 'area'
+
+export interface TimelineInsertDraft {
+  day: number
+  time?: string
+  endTime?: string
+  type?: AddNodeKind
+}
+
+const transportIcons: Partial<Record<TransportType, LucideIcon>> = {
   car: Car,
   walk: Footprints,
   train: Train,
+  shinkansen: Train,
   bus: Bus,
+  ferry: Ship,
+  plane: Plane,
+  taxi: Car,
+  bicycle: Bike,
+  ropeway: CableCar,
 }
 
-function TimelineBlock({ spot, tripId }: { spot: Spot; tripId: string }) {
-  const { removeSpot } = useTripContext()
-  const TransportIcon = transportIcons[spot.transport]
+function sortNodes(a: TimelineNode, b: TimelineNode) {
+  if (a.day !== b.day) return a.day - b.day
+  if (a.time !== b.time) return a.time.localeCompare(b.time)
+  return a.endTime.localeCompare(b.endTime)
+}
+
+function toTimelineNodes(trip: Trip): TimelineNode[] {
+  if (trip.nodes && trip.nodes.length > 0) {
+    return [...trip.nodes].sort(sortNodes)
+  }
+
+  const sortedSpots = [...trip.spots].sort((a, b) => {
+    if (a.day !== b.day) return a.day - b.day
+    return a.time.localeCompare(b.time)
+  })
+
+  const nodes: TimelineNode[] = []
+  const prevSpotByDay = new Map<number, SpotNode>()
+
+  for (const spot of sortedSpots) {
+    const prevSpot = prevSpotByDay.get(spot.day)
+
+    if (spot.distance > 0) {
+      nodes.push({
+        type: 'move',
+        id: `move-${spot.id}`,
+        name: `${TRANSPORT_LABELS[spot.transport]}で移動`,
+        time: prevSpot?.endTime ?? spot.time,
+        endTime: spot.time,
+        day: spot.day,
+        transport: spot.transport,
+        distance: spot.distance,
+        notes: '',
+        fromLat: prevSpot?.lat,
+        fromLng: prevSpot?.lng,
+        toLat: spot.lat,
+        toLng: spot.lng,
+      } satisfies MoveNode)
+    }
+
+    const spotNode = {
+      type: 'spot',
+      id: spot.id,
+      name: spot.name,
+      time: spot.time,
+      endTime: spot.endTime,
+      day: spot.day,
+      address: spot.address,
+      lat: spot.lat,
+      lng: spot.lng,
+      image: spot.image,
+      notes: spot.notes,
+    } satisfies SpotNode
+
+    nodes.push(spotNode)
+    prevSpotByDay.set(spot.day, spotNode)
+  }
+
+  return nodes.sort(sortNodes)
+}
+
+function NodeBlock({
+  node,
+  tripId,
+  isLast,
+}: {
+  node: TimelineNode
+  tripId: string
+  isLast: boolean
+}) {
+  const { removeSpot, removeNode } = useTripContext()
+
+  if (node.type === 'move') {
+    const TransportIcon = transportIcons[node.transport] ?? Route
+
+    return (
+      <div className="relative flex gap-3 pb-6">
+        <div className="flex flex-col items-center">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
+            <TransportIcon className="size-4" />
+          </div>
+          {!isLast && <div className="mt-1 h-full w-px bg-border" />}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="rounded-lg border border-primary/15 bg-primary/5 p-3">
+            <div className="flex items-center gap-2 text-xs text-primary">
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium">移動</span>
+              <Clock className="size-3" />
+              <span>
+                {node.time} - {node.endTime}
+              </span>
+            </div>
+            <h4 className="mt-1 font-serif text-sm font-bold text-foreground">{node.name}</h4>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {TRANSPORT_LABELS[node.transport]} {node.distance}km
+            </p>
+            {node.notes && (
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{node.notes}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (node.type === 'area') {
+    return (
+      <div className="relative flex gap-3 pb-6">
+        <div className="flex flex-col items-center">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-300/50 bg-emerald-500/10 text-emerald-700">
+            <MapIcon className="size-4" />
+          </div>
+          {!isLast && <div className="mt-1 h-full w-px bg-border" />}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/5 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs text-emerald-700">
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium">エリア</span>
+                <Clock className="size-3" />
+                <span>
+                  {node.time} - {node.endTime}
+                </span>
+              </div>
+              <button
+                onClick={() => removeNode(tripId, node.id)}
+                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                aria-label={`${node.name}エリアを削除`}
+              >
+                <Trash2 className="size-3" />
+              </button>
+            </div>
+            <h4 className="mt-1 font-serif text-sm font-bold text-foreground">{node.name}</h4>
+            <p className="mt-0.5 text-xs text-muted-foreground">エリア内は順不同で回る想定</p>
+            {node.spotNames.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {node.spotNames.map((spotName, idx) => (
+                  <span
+                    key={`${node.id}-spot-${idx}`}
+                    className="rounded-full border border-emerald-400/30 bg-background px-2 py-0.5 text-[11px] text-foreground"
+                  >
+                    {spotName}
+                  </span>
+                ))}
+              </div>
+            )}
+            {node.notes && (
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{node.notes}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="relative flex gap-3 pb-6">
@@ -22,41 +214,37 @@ function TimelineBlock({ spot, tripId }: { spot: Spot; tripId: string }) {
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <MapPin className="size-4" />
         </div>
-        <div className="mt-1 h-full w-px bg-border" />
+        {!isLast && <div className="mt-1 h-full w-px bg-border" />}
       </div>
 
       <div className="min-w-0 flex-1 pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="rounded-full bg-muted px-2 py-0.5 font-medium">スポット</span>
               <Clock className="size-3" />
-              <span>{spot.time} - {spot.endTime}</span>
-              {spot.distance > 0 && (
-                <>
-                  <span className="text-border">|</span>
-                  <TransportIcon className="size-3" />
-                  <span>{TRANSPORT_LABELS[spot.transport]} {spot.distance}km</span>
-                </>
-              )}
+              <span>
+                {node.time} - {node.endTime}
+              </span>
             </div>
-            <h4 className="mt-1 font-serif text-sm font-bold text-foreground">{spot.name}</h4>
-            {spot.notes && (
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{spot.notes}</p>
+            <h4 className="mt-1 font-serif text-sm font-bold text-foreground">{node.name}</h4>
+            {node.notes && (
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{node.notes}</p>
             )}
           </div>
           <div className="flex shrink-0 items-start gap-1">
-            {spot.image && (
+            {node.image && (
               <img
-                src={spot.image}
-                alt={spot.name}
+                src={node.image}
+                alt={node.name}
                 className="h-12 w-16 rounded-md object-cover"
                 crossOrigin="anonymous"
               />
             )}
             <button
-              onClick={() => removeSpot(tripId, spot.id)}
+              onClick={() => removeSpot(tripId, node.id)}
               className="mt-1 flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-              aria-label={`${spot.name}を削除`}
+              aria-label={`${node.name}を削除`}
             >
               <Trash2 className="size-3" />
             </button>
@@ -68,18 +256,55 @@ function TimelineBlock({ spot, tripId }: { spot: Spot; tripId: string }) {
 }
 
 function FreeTimeBlock({
+  day,
   startTime,
   endTime,
-  onAddSpot,
+  onInsertNode,
 }: {
+  day: number
   startTime: string
   endTime: string
-  onAddSpot: () => void
+  onInsertNode: (draft: TimelineInsertDraft) => void
 }) {
   const start = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1])
   const end = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1])
   const diffMinutes = end - start
-  if (diffMinutes <= 30) return null
+  const hasVisibleGap = diffMinutes > 30
+
+  if (!hasVisibleGap) {
+    return (
+      <div className="relative flex gap-3 pb-4">
+        <div className="relative flex flex-col items-center">
+          <button
+            onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'spot' })}
+            className="z-10 flex h-6 w-6 items-center justify-center rounded-full border border-primary/30 bg-background text-primary shadow-sm transition-colors hover:bg-primary/5"
+            aria-label={`${startTime}から${endTime}の間にノードを追加`}
+          >
+            <Plus className="size-3.5" />
+          </button>
+          <div className="mt-1 h-6 w-px bg-border" />
+        </div>
+
+        <div className="min-w-0 flex-1 pt-0.5">
+          <div className="flex items-center gap-2 rounded-md border border-dashed border-border px-3 py-1.5">
+            <span className="text-xs text-muted-foreground">この間に追加</span>
+            <button
+              onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'spot' })}
+              className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              スポット
+            </button>
+            <button
+              onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'area' })}
+              className="rounded bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20"
+            >
+              エリア
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const hours = Math.floor(diffMinutes / 60)
   const mins = diffMinutes % 60
@@ -87,8 +312,15 @@ function FreeTimeBlock({
 
   return (
     <div className="relative flex gap-3 pb-6">
-      <div className="flex flex-col items-center">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-accent bg-background text-accent">
+      <div className="relative flex flex-col items-center">
+        <button
+          onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'spot' })}
+          className="absolute -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-primary/30 bg-background text-primary shadow-sm transition-colors hover:bg-primary/5"
+          aria-label={`${startTime}から${endTime}の間にノードを追加`}
+        >
+          <Plus className="size-3.5" />
+        </button>
+        <div className="mt-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-accent bg-background text-accent">
           <Coffee className="size-4" />
         </div>
         <div className="mt-1 h-full w-px bg-border" />
@@ -96,18 +328,32 @@ function FreeTimeBlock({
 
       <div className="min-w-0 flex-1">
         <div className="rounded-lg border-2 border-dashed border-accent/40 bg-accent/5 p-3">
-          <p className="text-xs font-medium text-accent-foreground/70">
-            {label}のフリータイム
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-xs font-medium text-accent-foreground/70">{label}のスキマ時間</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {startTime} - {endTime} に差し込み可能
+              </p>
+            </div>
+            <button
+              onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'spot' })}
+              className="rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              + 追加
+            </button>
+          </div>
           <div className="mt-2 flex gap-2">
             <button
-              onClick={onAddSpot}
+              onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'spot' })}
               className="flex-1 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
             >
-              + スポット追加
+              スポットを入れる
             </button>
-            <button className="flex-1 rounded-md bg-accent/20 px-3 py-1.5 text-xs font-medium text-accent-foreground/70 transition-colors hover:bg-accent/30">
-              周辺散策
+            <button
+              onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'area' })}
+              className="flex-1 rounded-md bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20"
+            >
+              エリアでまとめる
             </button>
           </div>
         </div>
@@ -118,10 +364,10 @@ function FreeTimeBlock({
 
 export function Timeline({
   trip,
-  onAddSpotForDay,
+  onAddNode,
 }: {
   trip: Trip
-  onAddSpotForDay: (day: number) => void
+  onAddNode: (draft: TimelineInsertDraft) => void
 }) {
   const dayCount =
     Math.ceil(
@@ -129,14 +375,13 @@ export function Timeline({
         (1000 * 60 * 60 * 24)
     ) + 1
 
+  const allNodes = toTimelineNodes(trip)
   const days = Array.from({ length: dayCount }, (_, i) => i + 1)
 
   return (
     <div className="flex flex-col gap-6">
       {days.map((day) => {
-        const daySpots = trip.spots
-          .filter((s) => s.day === day)
-          .sort((a, b) => a.time.localeCompare(b.time))
+        const dayNodes = allNodes.filter((node) => node.day === day)
 
         const startDate = new Date(trip.startDate)
         startDate.setDate(startDate.getDate() + day - 1)
@@ -147,40 +392,41 @@ export function Timeline({
         return (
           <section key={day}>
             <div className="mb-3 flex items-baseline gap-2">
-              <h3 className="font-serif text-base font-bold text-foreground">
-                Day {day}
-              </h3>
+              <h3 className="font-serif text-base font-bold text-foreground">Day {day}</h3>
               <span className="text-xs text-muted-foreground">
                 {dateStr}（{weekDay}）
               </span>
             </div>
 
-            {daySpots.length === 0 ? (
+            {dayNodes.length === 0 ? (
               <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
-                <p className="text-sm text-muted-foreground">
-                  まだスポットがありません
-                </p>
+                <p className="text-sm text-muted-foreground">まだノードがありません</p>
                 <button
-                  onClick={() => onAddSpotForDay(day)}
+                  onClick={() => onAddNode({ day, type: 'spot' })}
                   className="mt-2 text-sm font-medium text-primary hover:underline"
                 >
-                  + 最初のスポットを追加
+                  + 最初のノードを追加
                 </button>
               </div>
             ) : (
               <div>
-                {daySpots.map((spot, idx) => (
-                  <div key={spot.id}>
-                    <TimelineBlock spot={spot} tripId={trip.id} />
-                    {idx < daySpots.length - 1 && (
-                      <FreeTimeBlock
-                        startTime={spot.endTime}
-                        endTime={daySpots[idx + 1].time}
-                        onAddSpot={() => onAddSpotForDay(day)}
-                      />
-                    )}
-                  </div>
-                ))}
+                {dayNodes.map((node, idx) => {
+                  const nextNode = dayNodes[idx + 1]
+
+                  return (
+                    <div key={node.id}>
+                      <NodeBlock node={node} tripId={trip.id} isLast={idx === dayNodes.length - 1} />
+                      {nextNode && (
+                        <FreeTimeBlock
+                          day={day}
+                          startTime={node.endTime}
+                          endTime={nextNode.time}
+                          onInsertNode={onAddNode}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </section>

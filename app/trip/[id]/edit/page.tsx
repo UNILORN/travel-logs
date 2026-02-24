@@ -3,6 +3,7 @@
 import { use, useState } from 'react'
 import { useTripContext } from '@/lib/trip-context'
 import { ItineraryHeader } from '@/components/itinerary/itinerary-header'
+import type { TimelineInsertDraft } from '@/components/itinerary/timeline'
 import { Timeline } from '@/components/itinerary/timeline'
 import { AddSpotDialog } from '@/components/itinerary/add-spot-dialog'
 import { BottomNav } from '@/components/shared/bottom-nav'
@@ -12,7 +13,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
   const { id } = use(params)
   const { getTrip } = useTripContext()
   const [addSpotOpen, setAddSpotOpen] = useState(false)
-  const [defaultDay, setDefaultDay] = useState(1)
+  const [draft, setDraft] = useState<TimelineInsertDraft>({ day: 1, type: 'spot' })
 
   const trip = getTrip(id)
   if (!trip) {
@@ -23,8 +24,8 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
     )
   }
 
-  const handleAddSpotForDay = (day: number) => {
-    setDefaultDay(day)
+  const handleOpenAddNode = (nextDraft: TimelineInsertDraft) => {
+    setDraft(nextDraft)
     setAddSpotOpen(true)
   }
 
@@ -33,12 +34,12 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
       <ItineraryHeader trip={trip} />
 
       <main className="mx-auto max-w-md px-4 pt-4">
-        <Timeline trip={trip} onAddSpotForDay={handleAddSpotForDay} />
+        <Timeline trip={trip} onAddNode={handleOpenAddNode} />
       </main>
 
       <button
         onClick={() => {
-          setDefaultDay(1)
+          setDraft({ day: 1, type: 'spot' })
           setAddSpotOpen(true)
         }}
         className="fixed bottom-20 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
@@ -51,7 +52,10 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
         tripId={trip.id}
         open={addSpotOpen}
         onOpenChange={setAddSpotOpen}
-        defaultDay={defaultDay}
+        defaultDay={draft.day}
+        defaultTime={draft.time}
+        defaultEndTime={draft.endTime}
+        defaultNodeType={draft.type}
       />
 
       <BottomNav tripId={id} active="edit" />

@@ -8,7 +8,10 @@ export interface Trip {
   status: 'planning' | 'traveling' | 'archived'
   members: { adults: number; children: number }
   budget: number
-  nodes: TimelineNode[]
+  /** New timeline model: move / spot as separate nodes */
+  nodes?: TimelineNode[]
+  /** Legacy model still used by parts of the UI; kept for compatibility during migration */
+  spots: Spot[]
   expenses: Expense[]
 }
 
@@ -45,7 +48,19 @@ export interface MoveNode {
   toLng?: number
 }
 
-export type TimelineNode = SpotNode | MoveNode
+/** A grouped area block (unordered visits inside a rough time box) */
+export interface AreaNode {
+  type: 'area'
+  id: string
+  name: string
+  time: string
+  endTime: string
+  day: number
+  spotNames: string[]
+  notes: string
+}
+
+export type TimelineNode = SpotNode | MoveNode | AreaNode
 
 export type TransportType =
   | 'train'
@@ -58,6 +73,25 @@ export type TransportType =
   | 'taxi'
   | 'bicycle'
   | 'ropeway'
+
+/**
+ * Legacy spot model that stores the inbound movement on the spot itself.
+ * Timeline UI converts this to separate move/spot nodes when rendering.
+ */
+export interface Spot {
+  id: string
+  name: string
+  time: string
+  endTime: string
+  day: number
+  address: string
+  lat: number
+  lng: number
+  image: string
+  notes: string
+  transport: TransportType
+  distance: number
+}
 
 export interface Expense {
   id: string

@@ -137,13 +137,55 @@ export function TripProvider({ children }: { children: ReactNode }) {
       prev.map((t) => {
         if (t.id !== tripId) return t
 
-        const spots = t.spots.map((s) => (s.id === spotId ? { ...s, ...updates } : s))
+        const spots = t.spots
+          .map((s) => (s.id === spotId ? { ...s, ...updates } : s))
+          .sort((a, b) => {
+            if (a.day !== b.day) return a.day - b.day
+            return a.time.localeCompare(b.time)
+          })
 
-        const nodes = t.nodes?.map((node) => {
-          if (node.type !== 'spot' || node.id !== spotId) return node
-          const merged = spots.find((s) => s.id === spotId)
-          return merged ? spotToNode(merged) : node
-        })
+        const mergedSpot = spots.find((s) => s.id === spotId)
+        const mergedSpotIndex = mergedSpot ? spots.findIndex((s) => s.id === spotId) : -1
+        const prevSpotSameDay =
+          mergedSpotIndex <= 0 || !mergedSpot
+            ? undefined
+            : (() => {
+                for (let i = mergedSpotIndex - 1; i >= 0; i -= 1) {
+                  if (spots[i].day === mergedSpot.day) return spots[i]
+                }
+                return undefined
+              })()
+
+        const nodes = t.nodes
+          ?.map((node): TimelineNode | null => {
+            if (!mergedSpot) return node
+
+            if (node.type === 'spot' && node.id === spotId) {
+              return spotToNode(mergedSpot)
+            }
+
+            if (node.type === 'move' && node.id === `move-${spotId}`) {
+              if (mergedSpot.distance <= 0) return null
+
+              return {
+                ...node,
+                name: `${TRANSPORT_LABELS[mergedSpot.transport]}で移動`,
+                time: prevSpotSameDay?.endTime ?? mergedSpot.time,
+                endTime: mergedSpot.time,
+                day: mergedSpot.day,
+                transport: mergedSpot.transport,
+                distance: mergedSpot.distance,
+                fromLat: prevSpotSameDay?.lat,
+                fromLng: prevSpotSameDay?.lng,
+                toLat: mergedSpot.lat,
+                toLng: mergedSpot.lng,
+              }
+            }
+
+            return node
+          })
+          .filter((node): node is TimelineNode => node !== null)
+          .sort(sortTimelineNodes)
 
         return { ...t, spots, nodes }
       })

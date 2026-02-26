@@ -6,11 +6,11 @@ import {
   Bus,
   CableCar,
   Car,
-  Clock,
   Coffee,
   Footprints,
   Map as MapIcon,
   MapPin,
+  Pencil,
   Plane,
   Plus,
   Route,
@@ -21,6 +21,7 @@ import {
 import type {
   AreaNode,
   MoveNode,
+  Spot,
   SpotNode,
   TimelineNode,
   TransportType,
@@ -112,14 +113,32 @@ function toTimelineNodes(trip: Trip): TimelineNode[] {
   return nodes.sort(sortNodes)
 }
 
+function TimeColumn({ startTime, endTime }: { startTime: string; endTime: string }) {
+  return (
+    <div className="flex w-14 shrink-0 flex-col items-end pt-0.5 text-[11px] leading-none">
+      <span className="font-semibold tabular-nums text-foreground">{startTime}</span>
+      <div className="my-1 flex h-4 items-center">
+        <div className="h-full w-px bg-border" />
+      </div>
+      <span className="tabular-nums text-muted-foreground">{endTime}</span>
+    </div>
+  )
+}
+
 function NodeBlock({
   node,
   tripId,
   isLast,
+  isEditable,
+  spot,
+  onEditSpot,
 }: {
   node: TimelineNode
   tripId: string
   isLast: boolean
+  isEditable: boolean
+  spot?: Spot
+  onEditSpot?: (spot: Spot) => void
 }) {
   const { removeSpot, removeNode } = useTripContext()
 
@@ -128,6 +147,7 @@ function NodeBlock({
 
     return (
       <div className="relative flex gap-3 pb-6">
+        <TimeColumn startTime={node.time} endTime={node.endTime} />
         <div className="flex flex-col items-center">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
             <TransportIcon className="size-4" />
@@ -139,10 +159,6 @@ function NodeBlock({
           <div className="rounded-lg border border-primary/15 bg-primary/5 p-3">
             <div className="flex items-center gap-2 text-xs text-primary">
               <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium">移動</span>
-              <Clock className="size-3" />
-              <span>
-                {node.time} - {node.endTime}
-              </span>
             </div>
             <h4 className="mt-1 font-serif text-sm font-bold text-foreground">{node.name}</h4>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -160,6 +176,7 @@ function NodeBlock({
   if (node.type === 'area') {
     return (
       <div className="relative flex gap-3 pb-6">
+        <TimeColumn startTime={node.time} endTime={node.endTime} />
         <div className="flex flex-col items-center">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-300/50 bg-emerald-500/10 text-emerald-700">
             <MapIcon className="size-4" />
@@ -172,18 +189,16 @@ function NodeBlock({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-xs text-emerald-700">
                 <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium">エリア</span>
-                <Clock className="size-3" />
-                <span>
-                  {node.time} - {node.endTime}
-                </span>
               </div>
-              <button
-                onClick={() => removeNode(tripId, node.id)}
-                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                aria-label={`${node.name}エリアを削除`}
-              >
-                <Trash2 className="size-3" />
-              </button>
+              {isEditable && (
+                <button
+                  onClick={() => removeNode(tripId, node.id)}
+                  className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  aria-label={`${node.name}エリアを削除`}
+                >
+                  <Trash2 className="size-3" />
+                </button>
+              )}
             </div>
             <h4 className="mt-1 font-serif text-sm font-bold text-foreground">{node.name}</h4>
             <p className="mt-0.5 text-xs text-muted-foreground">エリア内は順不同で回る想定</p>
@@ -210,6 +225,7 @@ function NodeBlock({
 
   return (
     <div className="relative flex gap-3 pb-6">
+      <TimeColumn startTime={node.time} endTime={node.endTime} />
       <div className="flex flex-col items-center">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <MapPin className="size-4" />
@@ -222,33 +238,42 @@ function NodeBlock({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="rounded-full bg-muted px-2 py-0.5 font-medium">スポット</span>
-              <Clock className="size-3" />
-              <span>
-                {node.time} - {node.endTime}
-              </span>
             </div>
             <h4 className="mt-1 font-serif text-sm font-bold text-foreground">{node.name}</h4>
             {node.notes && (
               <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{node.notes}</p>
             )}
           </div>
-          <div className="flex shrink-0 items-start gap-1">
-            {node.image && (
-              <img
-                src={node.image}
-                alt={node.name}
-                className="h-12 w-16 rounded-md object-cover"
-                crossOrigin="anonymous"
-              />
-            )}
-            <button
-              onClick={() => removeSpot(tripId, node.id)}
-              className="mt-1 flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-              aria-label={`${node.name}を削除`}
-            >
-              <Trash2 className="size-3" />
-            </button>
-          </div>
+          {(node.image || isEditable) && (
+            <div className="flex shrink-0 items-start gap-1">
+              {node.image && (
+                <img
+                  src={node.image}
+                  alt={node.name}
+                  className="h-12 w-16 rounded-md object-cover"
+                  crossOrigin="anonymous"
+                />
+              )}
+              {isEditable && spot && onEditSpot && (
+                <button
+                  onClick={() => onEditSpot(spot)}
+                  className="mt-1 flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                  aria-label={`${node.name}を編集`}
+                >
+                  <Pencil className="size-3" />
+                </button>
+              )}
+              {isEditable && (
+                <button
+                  onClick={() => removeSpot(tripId, node.id)}
+                  className="mt-1 flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  aria-label={`${node.name}を削除`}
+                >
+                  <Trash2 className="size-3" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -274,6 +299,7 @@ function FreeTimeBlock({
   if (!hasVisibleGap) {
     return (
       <div className="relative flex gap-3 pb-4">
+        <TimeColumn startTime={startTime} endTime={endTime} />
         <div className="relative flex flex-col items-center">
           <button
             onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'spot' })}
@@ -312,6 +338,7 @@ function FreeTimeBlock({
 
   return (
     <div className="relative flex gap-3 pb-6">
+      <TimeColumn startTime={startTime} endTime={endTime} />
       <div className="relative flex flex-col items-center">
         <button
           onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'spot' })}
@@ -331,9 +358,7 @@ function FreeTimeBlock({
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-xs font-medium text-accent-foreground/70">{label}のスキマ時間</p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                {startTime} - {endTime} に差し込み可能
-              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">ここに差し込み可能</p>
             </div>
             <button
               onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'spot' })}
@@ -364,10 +389,14 @@ function FreeTimeBlock({
 
 export function Timeline({
   trip,
+  isEditable,
   onAddNode,
+  onEditSpot,
 }: {
   trip: Trip
+  isEditable: boolean
   onAddNode: (draft: TimelineInsertDraft) => void
+  onEditSpot?: (spot: Spot) => void
 }) {
   const dayCount =
     Math.ceil(
@@ -376,6 +405,7 @@ export function Timeline({
     ) + 1
 
   const allNodes = toTimelineNodes(trip)
+  const spotById = new Map(trip.spots.map((spot) => [spot.id, spot]))
   const days = Array.from({ length: dayCount }, (_, i) => i + 1)
 
   return (
@@ -401,12 +431,14 @@ export function Timeline({
             {dayNodes.length === 0 ? (
               <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
                 <p className="text-sm text-muted-foreground">まだノードがありません</p>
-                <button
-                  onClick={() => onAddNode({ day, type: 'spot' })}
-                  className="mt-2 text-sm font-medium text-primary hover:underline"
-                >
-                  + 最初のノードを追加
-                </button>
+                {isEditable && (
+                  <button
+                    onClick={() => onAddNode({ day, type: 'spot' })}
+                    className="mt-2 text-sm font-medium text-primary hover:underline"
+                  >
+                    + 最初のノードを追加
+                  </button>
+                )}
               </div>
             ) : (
               <div>
@@ -415,8 +447,15 @@ export function Timeline({
 
                   return (
                     <div key={node.id}>
-                      <NodeBlock node={node} tripId={trip.id} isLast={idx === dayNodes.length - 1} />
-                      {nextNode && (
+                      <NodeBlock
+                        node={node}
+                        tripId={trip.id}
+                        isLast={idx === dayNodes.length - 1}
+                        isEditable={isEditable}
+                        spot={node.type === 'spot' ? spotById.get(node.id) : undefined}
+                        onEditSpot={onEditSpot}
+                      />
+                      {isEditable && nextNode && (
                         <FreeTimeBlock
                           day={day}
                           startTime={node.endTime}

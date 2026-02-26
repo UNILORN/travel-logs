@@ -88,8 +88,9 @@ export function AddSpotDialog({
   const [searchSessionToken, setSearchSessionToken] = useState('')
   const [isResolvingSpotDetails, setIsResolvingSpotDetails] = useState(false)
   const isEditingSpot = Boolean(editingSpot)
+  const isSpotSearchEnabled = process.env.NEXT_PUBLIC_ENABLE_SPOT_SEARCH !== '0'
 
-  const canSearchSpot = open && nodeType === 'spot' && name.trim().length >= 2
+  const canSearchSpot = isSpotSearchEnabled && open && nodeType === 'spot' && name.trim().length >= 2
   const searchQuery = useMemo(() => name.trim(), [name])
 
   useEffect(() => {
@@ -322,13 +323,17 @@ export function AddSpotDialog({
                 value={name}
                 autoComplete="off"
                 onFocus={() => {
-                  if (nodeType === 'spot' && (searchResults.length > 0 || isSearching)) {
+                  if (
+                    isSpotSearchEnabled &&
+                    nodeType === 'spot' &&
+                    (searchResults.length > 0 || isSearching)
+                  ) {
                     setShowSearchDropdown(true)
                   }
                 }}
                 onChange={(e) => {
                   setName(e.target.value)
-                  if (nodeType === 'spot') {
+                  if (isSpotSearchEnabled && nodeType === 'spot') {
                     setShowSearchDropdown(true)
                     setSearchError(null)
                     setAddress('')
@@ -338,7 +343,10 @@ export function AddSpotDialog({
                 }}
               />
 
-              {nodeType === 'spot' && showSearchDropdown && (isSearching || searchError || searchResults.length > 0) && (
+              {isSpotSearchEnabled &&
+                nodeType === 'spot' &&
+                showSearchDropdown &&
+                (isSearching || searchError || searchResults.length > 0) && (
                 <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-border bg-popover shadow-lg">
                   <div className="max-h-56 overflow-y-auto p-1">
                     {isSearching && (
@@ -374,6 +382,11 @@ export function AddSpotDialog({
                 </div>
               )}
             </div>
+            {nodeType === 'spot' && !isSpotSearchEnabled && (
+              <p className="text-xs text-muted-foreground">
+                PRプレビューではスポット検索を無効化しています。場所名や住所を手入力してください。
+              </p>
+            )}
             {nodeType === 'spot' && address && (
               <p className="text-xs text-muted-foreground">選択した住所: {address}</p>
             )}

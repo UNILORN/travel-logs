@@ -1,0 +1,138 @@
+name: PR Preview Pages
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: pr-preview-pages-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Compute preview URL
+        id: preview
+        shell: bash
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER}"
+          REPO="${GITHUB_REPOSITORY#*/}"
+
+          if [ "$REPO" = "${OWNER}.github.io" ]; then
+            SITE_BASE=""
+          else
+            SITE_BASE="/$REPO"
+          fi
+
+          PREVIEW_DIR="pr-preview/pr-${{ github.event.pull_request.number }}"
+          PREVIEW_PATH="${SITE_BASE}/${PREVIEW_DIR}"
+          PREVIEW_URL="https://${OWNER}.github.io${PREVIEW_PATH}/"
+
+          echo "preview_dir=$PREVIEW_DIR" >> "$GITHUB_OUTPUT"
+          echo "preview_path=$PREVIEW_PATH" >> "$GITHUB_OUTPUT"
+          echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Disable app/api for static export preview
+        run: |
+          if [ -d app/api ]; then
+            mv app/api .app-api-disabled-for-pages-preview
+          fi
+
+      - name: Build static preview
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          GITHUB_PAGES_PR_PREVIEW: '1'
+          NEXT_PUBLIC_GITHUB_PAGES_PR_PREVIEW: '1'
+          NEXT_PUBLIC_ENABLE_SPOT_SEARCH: '0'
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.preview.outputs.preview_path }}
+        run: pnpm build
+
+      - name: Skip deploy for fork PRs
+        if: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          echo "Fork PR detected. Preview deployment to gh-pages is skipped because GITHUB_TOKEN cannot push to this repository."
+
+      - name: Deploy preview to gh-pages
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./out
+          destination_dir: ${{ steps.preview.outputs.preview_dir }}
+          keep_files: true
+          enable_jekyll: false
+
+      - name: Comment preview URL
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
+        with:
+          script: |
+            const marker = '<!-- pr-preview-pages -->'
+            const body = [
+              marker,
+              `✅ PR Preview (GitHub Pages): ${process.env.PREVIEW_URL}`,
+              '',
+              '制約: GitHub Pages は静的配信のため、このプレビューでは新規旅作成とスポット検索APIを無効化しています。',
+            ].join('\n')
+
+            const issue_number = context.issue.number
+            const { owner, repo } = context.repo
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            })
+
+            const existing = comments.find(
+              (comment) =>
+                comment.user?.type === 'Bot' &&
+                typeof comment.body === 'string' &&
+                comment.body.includes(marker)
+            )
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              })
+            }

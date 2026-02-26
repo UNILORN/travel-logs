@@ -46,6 +46,7 @@ function TripCover({ trip }: { trip: Trip }) {
 export default function BookshelfPage() {
   const { trips } = useTripContext()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const isPagesPrPreview = process.env.NEXT_PUBLIC_GITHUB_PAGES_PR_PREVIEW === '1'
 
   const planningTrips = trips.filter((t) => t.status !== 'archived')
   const archivedTrips = trips.filter((t) => t.status === 'archived')
@@ -62,6 +63,12 @@ export default function BookshelfPage() {
       </header>
 
       <main className="mx-auto max-w-md px-4 pb-24 pt-6">
+        {isPagesPrPreview && (
+          <div className="mb-4 rounded-md border border-border bg-muted/50 p-3 text-xs text-muted-foreground">
+            PRプレビューでは GitHub Pages の静的配信制約により、新規旅作成とスポット検索を無効化しています。
+          </div>
+        )}
+
         {planningTrips.length > 0 && (
           <section>
             <h2 className="mb-3 font-serif text-sm font-bold text-muted-foreground tracking-wider">
@@ -101,14 +108,22 @@ export default function BookshelfPage() {
       </main>
 
       <button
-        onClick={() => setDialogOpen(true)}
-        className="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+        onClick={() => {
+          if (isPagesPrPreview) return
+          setDialogOpen(true)
+        }}
+        disabled={isPagesPrPreview}
+        className={`fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform ${
+          isPagesPrPreview
+            ? 'cursor-not-allowed opacity-50'
+            : 'hover:scale-105 active:scale-95'
+        }`}
         aria-label="新しい旅を作成"
       >
         <Plus className="size-6" />
       </button>
 
-      <NewTripDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      {!isPagesPrPreview && <NewTripDialog open={dialogOpen} onOpenChange={setDialogOpen} />}
     </div>
   )
 }

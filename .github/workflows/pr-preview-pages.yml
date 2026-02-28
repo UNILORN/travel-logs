@@ -42,14 +42,36 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      # NOTE: Do not set enablement:true here. pull_request tokens cannot create a Pages site.
+      - name: Check Pages site availability
+        id: pages_status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.repos.getPages({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              })
+              core.setOutput('site_exists', 'true')
+            } catch (error) {
+              if (error.status === 404) {
+                core.warning('GitHub Pages site is not enabled yet. Skipping PR preview deploy.')
+                core.setOutput('site_exists', 'false')
+              } else {
+                throw error
+              }
+            }
+
       - name: Setup Pages
+        if: ${{ steps.pages_status.outputs.site_exists == 'true' }}
         uses: actions/configure-pages@v5
 
       - name: Install dependencies
+        if: ${{ steps.pages_status.outputs.site_exists == 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Compute preview base path
+        if: ${{ steps.pages_status.outputs.site_exists == 'true' }}
         id: preview
         shell: bash
         run: |
@@ -68,12 +90,14 @@ jobs:
           echo "preview_path=$PREVIEW_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Disable app/api for static export preview
+        if: ${{ steps.pages_status.outputs.site_exists == 'true' }}
         run: |
           if [ -d app/api ]; then
             mv app/api .app-api-disabled-for-pages-preview
           fi
 
       - name: Build static preview
+        if: ${{ steps.pages_status.outputs.site_exists == 'true' }}
         env:
           NEXT_TELEMETRY_DISABLED: '1'
           GITHUB_PAGES_PR_PREVIEW: '1'
@@ -83,11 +107,13 @@ jobs:
         run: pnpm build
 
       - name: Upload artifact
+        if: ${{ steps.pages_status.outputs.site_exists == 'true' }}
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./out
 
       - name: Deploy preview to GitHub Pages
+        if: ${{ steps.pages_status.outputs.site_exists == 'true' }}
         id: deployment
         uses: actions/deploy-pages@v4
         with:
@@ -97,15 +123,23 @@ jobs:
         uses: actions/github-script@v7
         env:
           PREVIEW_URL: ${{ steps.deployment.outputs.page_url }}
+          SITE_EXISTS: ${{ steps.pages_status.outputs.site_exists }}
         with:
           script: |
             const marker = '<!-- pr-preview-pages -->'
-            const body = [
-              marker,
-              `✅ PR Preview (GitHub Pages): ${process.env.PREVIEW_URL}`,
-              '',
-              '制約: GitHub Pages は静的配信のため、このプレビューでは新規旅作成とスポット検索APIを無効化しています。',
-            ].join('\n')
+            const body = process.env.SITE_EXISTS === 'true'
+              ? [
+                  marker,
+                  `✅ PR Preview (GitHub Pages): ${process.env.PREVIEW_URL}`,
+                  '',
+                  '制約: GitHub Pages は静的配信のため、このプレビューでは新規旅作成とスポット検索APIを無効化しています。',
+                ].join('\n')
+              : [
+                  marker,
+                  '⚠️ GitHub Pages が未有効化のため、PR Preview はスキップされました。',
+                  '',
+                  '対処: リポジトリ設定で Pages の Build and deployment を GitHub Actions に設定するか、`Deploy GitHub Pages` ワークフローを一度実行して Pages サイトを作成してください。',
+                ].join('\n')
 
             const issue_number = context.issue.number
             const { owner, repo } = context.repo

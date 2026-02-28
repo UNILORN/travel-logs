@@ -1,9 +1,18 @@
 'use client'
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from 'react'
 import type { AreaNode, Expense, MoveNode, Spot, SpotNode, TimelineNode, Trip } from './types'
 import { TRANSPORT_LABELS } from './types'
 import { initialTrips } from './mock-data'
+import { parseTripsFromJson, stringifyTrips } from '@/lib/trip-json'
 
 type NewTimelineNode = Omit<SpotNode, 'id'> | Omit<MoveNode, 'id'> | Omit<AreaNode, 'id'>
 
@@ -21,9 +30,12 @@ interface TripContextValue {
   addExpense: (tripId: string, expense: Omit<Expense, 'id' | 'total'>) => void
   removeExpense: (tripId: string, expenseId: string) => void
   archiveTrip: (tripId: string) => void
+  replaceTrips: (nextTrips: Trip[]) => void
 }
 
 const TripContext = createContext<TripContextValue | null>(null)
+
+const TRIPS_STORAGE_KEY = 'travel-logs.trips.v1'
 
 function sortTimelineNodes(a: TimelineNode, b: TimelineNode) {
   if (a.day !== b.day) return a.day - b.day
@@ -87,6 +99,25 @@ function buildNodesFromLegacySpots(spots: Spot[]): TimelineNode[] {
 
 export function TripProvider({ children }: { children: ReactNode }) {
   const [trips, setTrips] = useState<Trip[]>(initialTrips)
+  const didLoadFromStorageRef = useRef(false)
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(TRIPS_STORAGE_KEY)
+      if (!stored) return
+      const parsedTrips = parseTripsFromJson(stored)
+      setTrips(parsedTrips)
+    } catch (error) {
+      console.warn('旅行データの読み込みに失敗しました。初期データを使用します。', error)
+    } finally {
+      didLoadFromStorageRef.current = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!didLoadFromStorageRef.current) return
+    window.localStorage.setItem(TRIPS_STORAGE_KEY, stringifyTrips(trips))
+  }, [trips])
 
   const getTrip = useCallback((id: string) => trips.find((t) => t.id === id), [trips])
 
@@ -275,6 +306,10 @@ export function TripProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
+  const replaceTrips = useCallback((nextTrips: Trip[]) => {
+    setTrips(nextTrips)
+  }, [])
+
   return (
     <TripContext.Provider
       value={{
@@ -291,6 +326,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
         addExpense,
         removeExpense,
         archiveTrip,
+        replaceTrips,
       }}
     >
       {children}

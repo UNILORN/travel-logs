@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
   pages: write
   id-token: write
   pull-requests: write
@@ -43,6 +44,8 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

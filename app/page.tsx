@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTripContext } from '@/lib/trip-context'
 import type { Trip } from '@/lib/types'
 import { STATUS_LABELS } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
-import { Plus } from 'lucide-react'
+import { Download, Plus, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { NewTripDialog } from '@/components/bookshelf/new-trip-dialog'
+import { Button } from '@/components/ui/button'
+import { parseTripsFromJson, stringifyTrips } from '@/lib/trip-json'
 
 function TripCover({ trip }: { trip: Trip }) {
   const statusColor =
@@ -44,7 +46,8 @@ function TripCover({ trip }: { trip: Trip }) {
 }
 
 export default function BookshelfPage() {
-  const { trips } = useTripContext()
+  const { trips, replaceTrips } = useTripContext()
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const isPagesPrPreview = process.env.NEXT_PUBLIC_GITHUB_PAGES_PR_PREVIEW === '1'
 
@@ -58,6 +61,56 @@ export default function BookshelfPage() {
           <div>
             <h1 className="font-serif text-xl font-bold text-foreground">たびログ</h1>
             <p className="text-xs text-muted-foreground">旅の本棚</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={async (event) => {
+                const file = event.target.files?.[0]
+                if (!file) return
+                try {
+                  const text = await file.text()
+                  const importedTrips = parseTripsFromJson(text)
+                  replaceTrips(importedTrips)
+                  window.alert(`JSONをインポートしました（${importedTrips.length}件）。`)
+                } catch (error) {
+                  console.error(error)
+                  window.alert('JSONのインポートに失敗しました。形式を確認してください。')
+                } finally {
+                  event.target.value = ''
+                }
+              }}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              className="h-8 px-2"
+            >
+              <Upload className="mr-1 size-3.5" />
+              取込
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const blob = new Blob([stringifyTrips(trips)], { type: 'application/json' })
+                const url = URL.createObjectURL(blob)
+                const link = document.createElement('a')
+                const date = new Date().toISOString().slice(0, 10)
+                link.href = url
+                link.download = `travel-plans-${date}.json`
+                link.click()
+                URL.revokeObjectURL(url)
+              }}
+              className="h-8 px-2"
+            >
+              <Download className="mr-1 size-3.5" />
+              保存
+            </Button>
           </div>
         </div>
       </header>

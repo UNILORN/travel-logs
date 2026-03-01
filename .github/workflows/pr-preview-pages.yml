@@ -1,15 +1,17 @@
 name: PR Preview Pages
 
 on:
-  pull_request:
+  pull_request_target:
     types:
       - opened
       - synchronize
       - reopened
 
 permissions:
-  contents: write
+  contents: read
   issues: write
+  pages: write
+  id-token: write
   pull-requests: write
 
 concurrency:
@@ -18,11 +20,18 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
 
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
-      - name: Checkout
+      - name: Checkout PR HEAD
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -35,10 +44,15 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Compute preview URL
+      - name: Compute preview base path
         id: preview
         shell: bash
         run: |
@@ -51,13 +65,10 @@ jobs:
             SITE_BASE="/$REPO"
           fi
 
-          PREVIEW_DIR="pr-preview/pr-${{ github.event.pull_request.number }}"
+          PREVIEW_DIR="_preview/pr-${{ github.event.pull_request.number }}"
           PREVIEW_PATH="${SITE_BASE}/${PREVIEW_DIR}"
-          PREVIEW_URL="https://${OWNER}.github.io${PREVIEW_PATH}/"
 
-          echo "preview_dir=$PREVIEW_DIR" >> "$GITHUB_OUTPUT"
           echo "preview_path=$PREVIEW_PATH" >> "$GITHUB_OUTPUT"
-          echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
 
       - name: Disable app/api for static export preview
         run: |
@@ -74,27 +85,21 @@ jobs:
           NEXT_PUBLIC_BASE_PATH: ${{ steps.preview.outputs.preview_path }}
         run: pnpm build
 
-      - name: Skip deploy for fork PRs
-        if: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
-        run: |
-          echo "Fork PR detected. Preview deployment to gh-pages is skipped because GITHUB_TOKEN cannot push to this repository."
-
-      - name: Deploy preview to gh-pages
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: ./out
-          destination_dir: ${{ steps.preview.outputs.preview_dir }}
-          keep_files: true
-          enable_jekyll: false
+          path: ./out
+
+      - name: Deploy preview to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          preview: true
 
       - name: Comment preview URL
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         uses: actions/github-script@v7
         env:
-          PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
+          PREVIEW_URL: ${{ steps.deployment.outputs.page_url }}
         with:
           script: |
             const marker = '<!-- pr-preview-pages -->'

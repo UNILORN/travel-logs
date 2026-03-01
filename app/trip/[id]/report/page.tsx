@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTripContext } from '@/lib/trip-context'
 import { TRANSPORT_LABELS, CATEGORY_LABELS } from '@/lib/types'
 import type { ExpenseCategory } from '@/lib/types'
+import { getTripTimelineNodes, isMoveNode, isSpotNode } from '@/lib/timeline-nodes'
 import { BottomNav } from '@/components/shared/bottom-nav'
 import { StatCard } from '@/components/report/stat-card'
 import { TransportChart } from '@/components/report/transport-chart'
@@ -23,9 +24,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   const stats = useMemo(() => {
     if (!trip) return null
 
-    const totalDistance = trip.spots.reduce((sum, s) => sum + s.distance, 0)
+    const timelineNodes = getTripTimelineNodes(trip)
+    const moveNodes = timelineNodes.filter(isMoveNode)
+    const spotNodes = timelineNodes.filter(isSpotNode)
+
+    const totalDistance = moveNodes.reduce((sum, node) => sum + node.distance, 0)
     const totalSpent = trip.expenses.reduce((sum, e) => sum + e.total, 0)
-    const spotCount = trip.spots.length
+    const spotCount = spotNodes.length
     const dayCount =
       Math.ceil(
         (new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) /
@@ -34,10 +39,10 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
     // Transport breakdown
     const transportBreakdown: Record<string, number> = {}
-    trip.spots.forEach((s) => {
-      if (s.distance > 0) {
-        const label = TRANSPORT_LABELS[s.transport]
-        transportBreakdown[label] = (transportBreakdown[label] || 0) + s.distance
+    moveNodes.forEach((node) => {
+      if (node.distance > 0) {
+        const label = TRANSPORT_LABELS[node.transport]
+        transportBreakdown[label] = (transportBreakdown[label] || 0) + node.distance
       }
     })
     const transportData = Object.entries(transportBreakdown).map(([name, value]) => ({
@@ -59,9 +64,9 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
     // Daily distances
     const dailyDistances: { day: string; distance: number }[] = []
     for (let d = 1; d <= dayCount; d++) {
-      const dayDistance = trip.spots
-        .filter((s) => s.day === d)
-        .reduce((sum, s) => sum + s.distance, 0)
+      const dayDistance = moveNodes
+        .filter((node) => node.day === d)
+        .reduce((sum, node) => sum + node.distance, 0)
       dailyDistances.push({ day: `Day ${d}`, distance: Math.round(dayDistance * 10) / 10 })
     }
 

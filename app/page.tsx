@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { parseTripsFromJson, stringifyTrips } from '@/lib/trip-json'
 
 function TripCover({ trip }: { trip: Trip }) {
+  const coverImageSrc = trip.coverImage.trim()
   const statusColor =
     trip.status === 'traveling'
       ? 'bg-chart-1 text-primary-foreground'
@@ -22,12 +23,16 @@ function TripCover({ trip }: { trip: Trip }) {
   return (
     <Link href={`/trip/${trip.id}/edit`} className="group block">
       <div className="relative aspect-[3/4] overflow-hidden rounded-lg shadow-md transition-transform duration-200 group-hover:scale-[1.02] group-hover:shadow-lg">
-        <img
-          src={trip.coverImage}
-          alt={`${trip.destination}の旅行カバー`}
-          className="h-full w-full object-cover"
-          crossOrigin="anonymous"
-        />
+        {coverImageSrc ? (
+          <img
+            src={coverImageSrc}
+            alt={`${trip.destination}の旅行カバー`}
+            className="h-full w-full object-cover"
+            crossOrigin="anonymous"
+          />
+        ) : (
+          <div className="h-full w-full bg-gradient-to-br from-muted via-background to-muted" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/20 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-1 p-3">
           <Badge className={`${statusColor} w-fit border-0 text-[10px]`}>

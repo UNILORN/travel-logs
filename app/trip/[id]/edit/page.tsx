@@ -2,7 +2,7 @@
 
 import { use, useState } from 'react'
 import { useTripContext } from '@/lib/trip-context'
-import type { Spot } from '@/lib/types'
+import type { MoveNode, Spot } from '@/lib/types'
 import { ItineraryHeader } from '@/components/itinerary/itinerary-header'
 import type { TimelineInsertDraft } from '@/components/itinerary/timeline'
 import { Timeline } from '@/components/itinerary/timeline'
@@ -17,6 +17,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
   const [draft, setDraft] = useState<TimelineInsertDraft>({ day: 1, type: 'spot' })
   const [timelineMode, setTimelineMode] = useState<'view' | 'edit'>('view')
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null)
+  const [editingMove, setEditingMove] = useState<MoveNode | null>(null)
 
   const trip = getTrip(id)
   if (!trip) {
@@ -32,6 +33,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
   const handleOpenAddNode = (nextDraft: TimelineInsertDraft) => {
     if (!isEditMode) return
     setEditingSpot(null)
+    setEditingMove(null)
     setDraft(nextDraft)
     setAddSpotOpen(true)
   }
@@ -39,7 +41,16 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
   const handleOpenEditSpot = (spot: Spot) => {
     if (!isEditMode) return
     setEditingSpot(spot)
+    setEditingMove(null)
     setDraft({ day: spot.day, time: spot.time, endTime: spot.endTime, type: 'spot' })
+    setAddSpotOpen(true)
+  }
+
+  const handleOpenEditMove = (node: MoveNode) => {
+    if (!isEditMode) return
+    setEditingSpot(null)
+    setEditingMove(node)
+    setDraft({ day: node.day, time: node.time, endTime: node.endTime, type: 'move' })
     setAddSpotOpen(true)
   }
 
@@ -57,6 +68,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
                 setTimelineMode('view')
                 setAddSpotOpen(false)
                 setEditingSpot(null)
+                setEditingMove(null)
               }}
               aria-pressed={timelineMode === 'view'}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -87,6 +99,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
           isEditable={isEditMode}
           onAddNode={handleOpenAddNode}
           onEditSpot={handleOpenEditSpot}
+          onEditMove={handleOpenEditMove}
         />
       </main>
 
@@ -94,11 +107,12 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
         <button
           onClick={() => {
             setEditingSpot(null)
+            setEditingMove(null)
             setDraft({ day: 1, type: 'spot' })
             setAddSpotOpen(true)
           }}
           className="fixed bottom-20 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
-          aria-label="スポットを追加"
+          aria-label="ノードを追加"
         >
           <Plus className="size-5" />
         </button>
@@ -111,6 +125,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
           setAddSpotOpen(open)
           if (!open) {
             setEditingSpot(null)
+            setEditingMove(null)
           }
         }}
         defaultDay={draft.day}
@@ -118,6 +133,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
         defaultEndTime={draft.endTime}
         defaultNodeType={draft.type}
         editingSpot={editingSpot}
+        editingMove={editingMove}
       />
 
       <BottomNav tripId={id} active="edit" />

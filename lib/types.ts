@@ -1,3 +1,32 @@
+export const TRIP_STATUSES = ['planning', 'traveling', 'archived'] as const
+
+export type TripStatus = (typeof TRIP_STATUSES)[number]
+
+export const TRANSPORT_TYPES = [
+  'train',
+  'shinkansen',
+  'bus',
+  'car',
+  'walk',
+  'ferry',
+  'plane',
+  'taxi',
+  'bicycle',
+  'ropeway',
+] as const
+
+export type TransportType = (typeof TRANSPORT_TYPES)[number]
+
+export const EXPENSE_CATEGORIES = [
+  'transport',
+  'accommodation',
+  'activity',
+  'food',
+  'other',
+] as const
+
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number]
+
 export interface Trip {
   id: string
   title: string
@@ -5,7 +34,7 @@ export interface Trip {
   coverImage: string
   startDate: string
   endDate: string
-  status: 'planning' | 'traveling' | 'archived'
+  status: TripStatus
   members: { adults: number; children: number }
   budget: number
   /** New timeline model: move / spot as separate nodes */
@@ -40,6 +69,7 @@ export interface MoveNode {
   day: number
   transport: TransportType
   distance: number
+  image: string
   notes: string
   /** Optional: some moves like ferries have origin/destination coords */
   fromLat?: number
@@ -62,18 +92,6 @@ export interface AreaNode {
 
 export type TimelineNode = SpotNode | MoveNode | AreaNode
 
-export type TransportType =
-  | 'train'
-  | 'shinkansen'
-  | 'bus'
-  | 'car'
-  | 'walk'
-  | 'ferry'
-  | 'plane'
-  | 'taxi'
-  | 'bicycle'
-  | 'ropeway'
-
 /**
  * Legacy spot model that stores the inbound movement on the spot itself.
  * Timeline UI converts this to separate move/spot nodes when rendering.
@@ -95,14 +113,14 @@ export interface Spot {
 
 export interface Expense {
   id: string
-  category: 'transport' | 'accommodation' | 'activity' | 'food' | 'other'
+  category: ExpenseCategory
   name: string
   adultPrice: number
   childPrice: number
+  adultCount: number
+  childCount: number
   total: number
 }
-
-export type ExpenseCategory = Expense['category']
 
 export const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
   transport: '交通費',
@@ -125,7 +143,7 @@ export const TRANSPORT_LABELS: Record<TransportType, string> = {
   ropeway: 'ロープウェイ',
 }
 
-export const STATUS_LABELS: Record<Trip['status'], string> = {
+export const STATUS_LABELS: Record<TripStatus, string> = {
   planning: '計画中',
   traveling: '旅行中',
   archived: 'アーカイブ',

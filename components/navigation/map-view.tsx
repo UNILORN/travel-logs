@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import type { Spot } from '@/lib/types'
+import type { SpotNode } from '@/lib/types'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -32,7 +32,7 @@ export function MapView({
   activeSpotId,
   onMarkerClick,
 }: {
-  spots: Spot[]
+  spots: SpotNode[]
   activeSpotId: string | null
   onMarkerClick: (spotId: string) => void
 }) {

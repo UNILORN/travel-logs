@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTripContext } from '@/lib/trip-context'
 import type { ExpenseCategory } from '@/lib/types'
 import {
@@ -30,24 +30,48 @@ export function ExpenseForm({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { addExpense } = useTripContext()
+  const { addExpense, getTrip } = useTripContext()
+  const trip = getTrip(tripId)
+  const defaultAdultCount = trip?.members.adults ?? 1
+  const defaultChildCount = trip?.members.children ?? 0
   const [category, setCategory] = useState<ExpenseCategory>('food')
   const [name, setName] = useState('')
   const [adultPrice, setAdultPrice] = useState(0)
   const [childPrice, setChildPrice] = useState(0)
+  const [adultCount, setAdultCount] = useState(defaultAdultCount)
+  const [childCount, setChildCount] = useState(defaultChildCount)
+
+  useEffect(() => {
+    if (!open) return
+    setAdultCount(defaultAdultCount)
+    setChildCount(defaultChildCount)
+  }, [open, defaultAdultCount, defaultChildCount])
+
+  const handleCategoryChange = (nextCategory: ExpenseCategory) => {
+    setCategory(nextCategory)
+    if (nextCategory !== 'transport') {
+      setAdultCount(defaultAdultCount)
+      setChildCount(defaultChildCount)
+    }
+  }
 
   const handleAdd = () => {
-    if (!name) return
+    const trimmedName = name.trim()
+    if (!trimmedName) return
     addExpense(tripId, {
       category,
-      name,
+      name: trimmedName,
       adultPrice,
       childPrice,
+      adultCount: category === 'transport' ? adultCount : defaultAdultCount,
+      childCount: category === 'transport' ? childCount : defaultChildCount,
     })
     onOpenChange(false)
     setName('')
     setAdultPrice(0)
     setChildPrice(0)
+    setAdultCount(defaultAdultCount)
+    setChildCount(defaultChildCount)
   }
 
   return (
@@ -61,7 +85,7 @@ export function ExpenseForm({
             <Label>カテゴリ</Label>
             <Select
               value={category}
-              onValueChange={(v) => setCategory(v as ExpenseCategory)}
+              onValueChange={(v) => handleCategoryChange(v as ExpenseCategory)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -106,9 +130,42 @@ export function ExpenseForm({
               />
             </div>
           </div>
+          {category === 'transport' && (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-muted-foreground">交通費は人数を個別に指定できます。</p>
+              <div
+                className={`grid gap-3 ${
+                  defaultChildCount > 0 ? 'grid-cols-2' : 'grid-cols-1'
+                }`}
+              >
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="adult-count">大人人数</Label>
+                  <Input
+                    id="adult-count"
+                    type="number"
+                    min={0}
+                    value={adultCount}
+                    onChange={(e) => setAdultCount(Math.max(0, parseInt(e.target.value) || 0))}
+                  />
+                </div>
+                {defaultChildCount > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="child-count">子供人数</Label>
+                    <Input
+                      id="child-count"
+                      type="number"
+                      min={0}
+                      value={childCount}
+                      onChange={(e) => setChildCount(Math.max(0, parseInt(e.target.value) || 0))}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
-          <Button onClick={handleAdd} disabled={!name} className="w-full">
+          <Button onClick={handleAdd} disabled={!name.trim()} className="w-full">
             追加する
           </Button>
         </DialogFooter>

@@ -83,6 +83,7 @@ function buildNodesFromLegacySpots(spots: Spot[]): TimelineNode[] {
         day: spot.day,
         transport: spot.transport,
         distance: spot.distance,
+        image: '',
         notes: '',
         fromLat: prevSpot?.lat,
         fromLng: prevSpot?.lng,
@@ -316,9 +317,13 @@ export function TripProvider({ children }: { children: ReactNode }) {
     setTrips((prev) =>
       prev.map((t) => {
         if (t.id !== tripId) return t
-        const total = expense.adultPrice * t.members.adults + expense.childPrice * t.members.children
+        const adultCount = Math.max(0, Math.floor(expense.adultCount))
+        const childCount = Math.max(0, Math.floor(expense.childCount))
+        const total = expense.adultPrice * adultCount + expense.childPrice * childCount
         const newExpense: Expense = {
           ...expense,
+          adultCount,
+          childCount,
           id: `exp-${Date.now()}`,
           total,
         }

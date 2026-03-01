@@ -86,6 +86,7 @@ export function AddSpotDialog({
   const [address, setAddress] = useState('')
   const [lat, setLat] = useState<number | null>(null)
   const [lng, setLng] = useState<number | null>(null)
+  const [image, setImage] = useState('')
   const [searchResults, setSearchResults] = useState<SpotSearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
@@ -123,6 +124,7 @@ export function AddSpotDialog({
       setAddress(editingSpot.address)
       setLat(editingSpot.lat)
       setLng(editingSpot.lng)
+      setImage(editingSpot.image)
       return
     }
 
@@ -139,6 +141,7 @@ export function AddSpotDialog({
       setAddress('')
       setLat(null)
       setLng(null)
+      setImage(editingMove.image)
       return
     }
 
@@ -154,6 +157,7 @@ export function AddSpotDialog({
     setAddress('')
     setLat(null)
     setLng(null)
+    setImage('')
   }, [open, defaultDay, defaultTime, defaultEndTime, defaultNodeType, editingSpot, editingMove])
 
   const resetForm = () => {
@@ -165,6 +169,7 @@ export function AddSpotDialog({
     setAddress('')
     setLat(null)
     setLng(null)
+    setImage('')
     setSearchResults([])
     setSearchError(null)
     setSearchProvider(null)
@@ -269,6 +274,7 @@ export function AddSpotDialog({
 
   const handleAdd = () => {
     const trimmedName = name.trim()
+    const resolvedImage = image.trim()
     const resolvedName =
       nodeType === 'move' ? trimmedName || getDefaultMoveName(transport) : trimmedName
     if (!resolvedName || !time || !endTime) return
@@ -282,7 +288,7 @@ export function AddSpotDialog({
         address,
         lat: lat ?? editingSpot?.lat ?? 35.0 + Math.random() * 0.5,
         lng: lng ?? editingSpot?.lng ?? 135.0 + Math.random() * 0.5,
-        image: editingSpot?.image ?? '',
+        image: resolvedImage,
         notes,
         transport,
         distance,
@@ -302,6 +308,7 @@ export function AddSpotDialog({
           day,
           transport,
           distance,
+          image: resolvedImage,
           notes,
         })
       } else {
@@ -313,6 +320,7 @@ export function AddSpotDialog({
           day,
           transport,
           distance,
+          image: resolvedImage,
           notes,
         })
       }
@@ -563,6 +571,20 @@ export function AddSpotDialog({
           ) : (
             <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
               移動はスポットとは別に「移動」ノードとして追加します。
+            </div>
+          )}
+
+          {nodeType !== 'area' && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="node-image">
+                {nodeType === 'move' ? '移動画像URL' : '画像URL'}
+              </Label>
+              <Input
+                id="node-image"
+                placeholder="https://example.com/image.jpg"
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
+              />
             </div>
           )}
 

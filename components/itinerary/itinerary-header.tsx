@@ -5,6 +5,7 @@ import { ArrowLeft, Calendar } from 'lucide-react'
 import Link from 'next/link'
 
 export function ItineraryHeader({ trip }: { trip: Trip }) {
+  const coverImageSrc = trip.coverImage.trim()
   const dayCount =
     Math.ceil(
       (new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) /
@@ -14,12 +15,16 @@ export function ItineraryHeader({ trip }: { trip: Trip }) {
   return (
     <div className="relative">
       <div className="relative h-48 overflow-hidden">
-        <img
-          src={trip.coverImage}
-          alt={`${trip.destination}のカバー画像`}
-          className="h-full w-full object-cover"
-          crossOrigin="anonymous"
-        />
+        {coverImageSrc ? (
+          <img
+            src={coverImageSrc}
+            alt={`${trip.destination}のカバー画像`}
+            className="h-full w-full object-cover"
+            crossOrigin="anonymous"
+          />
+        ) : (
+          <div className="h-full w-full bg-gradient-to-br from-muted via-background to-muted" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/30 to-foreground/10" />
       </div>
 

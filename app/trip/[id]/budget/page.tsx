@@ -99,7 +99,6 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
             <ExpenseList
               expenses={filteredExpenses}
               tripId={id}
-              members={trip.members}
             />
           </TabsContent>
         </Tabs>

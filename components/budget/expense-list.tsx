@@ -8,11 +8,9 @@ import { Trash2 } from 'lucide-react'
 export function ExpenseList({
   expenses,
   tripId,
-  members,
 }: {
   expenses: Expense[]
   tripId: string
-  members: { adults: number; children: number }
 }) {
   const { removeExpense } = useTripContext()
 
@@ -41,9 +39,17 @@ export function ExpenseList({
               </span>
             </div>
             <div className="mt-1 flex gap-3 text-xs text-muted-foreground">
-              <span>大人 {expense.adultPrice.toLocaleString()}円</span>
-              {members.children > 0 && (
-                <span>子供 {expense.childPrice.toLocaleString()}円</span>
+              <span>
+                {expense.category === 'transport'
+                  ? `大人 ${expense.adultCount}名 x ${expense.adultPrice.toLocaleString()}円`
+                  : `大人 ${expense.adultPrice.toLocaleString()}円`}
+              </span>
+              {expense.childCount > 0 && expense.childPrice > 0 && (
+                <span>
+                  {expense.category === 'transport'
+                    ? `子供 ${expense.childCount}名 x ${expense.childPrice.toLocaleString()}円`
+                    : `子供 ${expense.childPrice.toLocaleString()}円`}
+                </span>
               )}
             </div>
           </div>

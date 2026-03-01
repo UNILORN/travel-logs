@@ -97,38 +97,50 @@ function NodeBlock({
 
         <div className="min-w-0 flex-1">
           <div className="rounded-lg border border-primary/15 bg-primary/5 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs text-primary">
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium">移動</span>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 text-xs text-primary">
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium">移動</span>
+                </div>
+                <h4 className="mt-1 font-serif text-sm font-bold text-foreground">{node.name}</h4>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {TRANSPORT_LABELS[node.transport]} {node.distance}km
+                </p>
+                {node.notes && (
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{node.notes}</p>
+                )}
               </div>
-              {isEditable && (
-                <div className="flex items-center gap-1">
-                  {onEditMove && (
+              {(node.image || isEditable) && (
+                <div className="flex shrink-0 items-start gap-1">
+                  {node.image && (
+                    <img
+                      src={node.image}
+                      alt={node.name}
+                      className="h-12 w-16 rounded-md object-cover"
+                      crossOrigin="anonymous"
+                    />
+                  )}
+                  {isEditable && onEditMove && (
                     <button
                       onClick={() => onEditMove(node)}
-                      className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                      className="mt-1 flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                       aria-label={`${node.name}を編集`}
                     >
                       <Pencil className="size-3" />
                     </button>
                   )}
-                  <button
-                    onClick={() => removeNode(tripId, node.id)}
-                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                    aria-label={`${node.name}を削除`}
-                  >
-                    <Trash2 className="size-3" />
-                  </button>
+                  {isEditable && (
+                    <button
+                      onClick={() => removeNode(tripId, node.id)}
+                      className="mt-1 flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      aria-label={`${node.name}を削除`}
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  )}
                 </div>
               )}
             </div>
-            <h4 className="mt-1 font-serif text-sm font-bold text-foreground">{node.name}</h4>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {TRANSPORT_LABELS[node.transport]} {node.distance}km
-            </p>
-            {node.notes && (
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{node.notes}</p>
-            )}
           </div>
         </div>
       </div>
@@ -253,6 +265,10 @@ function FreeTimeBlock({
   endTime: string
   onInsertNode: (draft: TimelineInsertDraft) => void
 }) {
+  if (!startTime || !endTime) {
+    return null
+  }
+
   const start = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1])
   const end = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1])
   const diffMinutes = end - start

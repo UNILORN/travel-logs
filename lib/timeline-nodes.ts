@@ -44,6 +44,7 @@ export function buildTimelineNodesFromLegacySpots(spots: Spot[]): TimelineNode[]
         day: spot.day,
         transport: spot.transport,
         distance: spot.distance,
+        image: '',
         notes: '',
         fromLat: prevSpot?.lat,
         fromLng: prevSpot?.lng,

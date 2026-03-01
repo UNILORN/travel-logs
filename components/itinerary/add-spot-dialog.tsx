@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useTripContext } from '@/lib/trip-context'
-import type { Spot, TransportType } from '@/lib/types'
+import { TRANSPORT_LABELS, type MoveNode, type Spot, type TransportType } from '@/lib/types'
 import {
   Dialog,
   DialogContent,
@@ -48,6 +48,10 @@ function createFoursquareSessionToken() {
     .slice(0, 32)
 }
 
+function getDefaultMoveName(transport: SpotTransport) {
+  return `${TRANSPORT_LABELS[transport]}で移動`
+}
+
 export function AddSpotDialog({
   tripId,
   open,
@@ -57,6 +61,7 @@ export function AddSpotDialog({
   defaultEndTime,
   defaultNodeType = 'spot',
   editingSpot = null,
+  editingMove = null,
 }: {
   tripId: string
   open: boolean
@@ -66,8 +71,9 @@ export function AddSpotDialog({
   defaultEndTime?: string
   defaultNodeType?: AddNodeKind
   editingSpot?: Spot | null
+  editingMove?: MoveNode | null
 }) {
-  const { addSpot, addNode, updateSpot } = useTripContext()
+  const { addSpot, addNode, updateSpot, updateNode } = useTripContext()
   const [nodeType, setNodeType] = useState<AddNodeKind>(defaultNodeType)
   const [name, setName] = useState('')
   const [time, setTime] = useState(defaultTime ?? '10:00')
@@ -88,6 +94,8 @@ export function AddSpotDialog({
   const [searchSessionToken, setSearchSessionToken] = useState('')
   const [isResolvingSpotDetails, setIsResolvingSpotDetails] = useState(false)
   const isEditingSpot = Boolean(editingSpot)
+  const isEditingMove = Boolean(editingMove)
+  const isEditingNode = isEditingSpot || isEditingMove
   const isSpotSearchEnabled = process.env.NEXT_PUBLIC_ENABLE_SPOT_SEARCH !== '0'
 
   const canSearchSpot = isSpotSearchEnabled && open && nodeType === 'spot' && name.trim().length >= 2
@@ -118,19 +126,35 @@ export function AddSpotDialog({
       return
     }
 
+    if (editingMove) {
+      setNodeType('move')
+      setName(editingMove.name)
+      setTime(editingMove.time)
+      setEndTime(editingMove.endTime)
+      setDay(editingMove.day)
+      setNotes(editingMove.notes)
+      setTransport(editingMove.transport)
+      setDistance(editingMove.distance)
+      setAreaSpotsText('')
+      setAddress('')
+      setLat(null)
+      setLng(null)
+      return
+    }
+
     setDay(defaultDay)
     setTime(defaultTime ?? '10:00')
     setEndTime(defaultEndTime ?? '12:00')
     setNodeType(defaultNodeType)
-    setName('')
-    setNotes('')
     setTransport('train')
+    setName(defaultNodeType === 'move' ? getDefaultMoveName('train') : '')
+    setNotes('')
     setDistance(0)
     setAreaSpotsText('')
     setAddress('')
     setLat(null)
     setLng(null)
-  }, [open, defaultDay, defaultTime, defaultEndTime, defaultNodeType, editingSpot])
+  }, [open, defaultDay, defaultTime, defaultEndTime, defaultNodeType, editingSpot, editingMove])
 
   const resetForm = () => {
     setName('')
@@ -227,12 +251,31 @@ export function AddSpotDialog({
     }
   }
 
+  const handleSelectNodeType = (nextType: AddNodeKind) => {
+    setNodeType(nextType)
+    if (nextType === 'move' && !name.trim()) {
+      setName(getDefaultMoveName(transport))
+    }
+  }
+
+  const handleTransportChange = (nextTransport: SpotTransport) => {
+    const currentDefaultName = getDefaultMoveName(transport)
+    setTransport(nextTransport)
+
+    if (nodeType === 'move' && (!name.trim() || name === currentDefaultName)) {
+      setName(getDefaultMoveName(nextTransport))
+    }
+  }
+
   const handleAdd = () => {
-    if (!name || !time || !endTime) return
+    const trimmedName = name.trim()
+    const resolvedName =
+      nodeType === 'move' ? trimmedName || getDefaultMoveName(transport) : trimmedName
+    if (!resolvedName || !time || !endTime) return
 
     if (nodeType === 'spot') {
       const nextSpot = {
-        name,
+        name: resolvedName,
         time,
         endTime,
         day,
@@ -250,6 +293,29 @@ export function AddSpotDialog({
       } else {
         addSpot(tripId, nextSpot)
       }
+    } else if (nodeType === 'move') {
+      if (editingMove) {
+        updateNode(tripId, editingMove.id, {
+          name: resolvedName,
+          time,
+          endTime,
+          day,
+          transport,
+          distance,
+          notes,
+        })
+      } else {
+        addNode(tripId, {
+          type: 'move',
+          name: resolvedName,
+          time,
+          endTime,
+          day,
+          transport,
+          distance,
+          notes,
+        })
+      }
     } else {
       const spotNames = areaSpotsText
         .split('\n')
@@ -258,7 +324,7 @@ export function AddSpotDialog({
 
       addNode(tripId, {
         type: 'area',
-        name,
+        name: resolvedName,
         time,
         endTime,
         day,
@@ -276,16 +342,16 @@ export function AddSpotDialog({
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="font-serif">
-            {isEditingSpot ? 'スポットを編集' : 'ノードを追加'}
+            {isEditingSpot ? 'スポットを編集' : isEditingMove ? '移動を編集' : 'ノードを追加'}
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
-          {!isEditingSpot && (
-            <div className="grid grid-cols-2 gap-2">
+          {!isEditingNode && (
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => setNodeType('spot')}
+                onClick={() => handleSelectNodeType('spot')}
                 className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
                   nodeType === 'spot'
                     ? 'border-primary bg-primary/10 text-primary'
@@ -296,7 +362,7 @@ export function AddSpotDialog({
               </button>
               <button
                 type="button"
-                onClick={() => setNodeType('area')}
+                onClick={() => handleSelectNodeType('area')}
                 className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
                   nodeType === 'area'
                     ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-700'
@@ -305,21 +371,40 @@ export function AddSpotDialog({
               >
                 エリア
               </button>
+              <button
+                type="button"
+                onClick={() => handleSelectNodeType('move')}
+                className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                  nodeType === 'move'
+                    ? 'border-primary/50 bg-primary/10 text-primary'
+                    : 'border-border bg-background text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                移動
+              </button>
             </div>
           )}
 
-          {!isEditingSpot && (defaultTime || defaultEndTime) && (
+          {!isEditingNode && (defaultTime || defaultEndTime) && (
             <div className="rounded-md border border-accent/30 bg-accent/10 px-3 py-2 text-xs text-muted-foreground">
               スキマ時間の候補: {defaultTime ?? '未設定'} - {defaultEndTime ?? '未設定'}
             </div>
           )}
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="node-name">{nodeType === 'spot' ? '場所の名前' : 'エリア名'}</Label>
+            <Label htmlFor="node-name">
+              {nodeType === 'spot' ? '場所の名前' : nodeType === 'area' ? 'エリア名' : '移動名'}
+            </Label>
             <div className="relative">
               <Input
                 id="node-name"
-                placeholder={nodeType === 'spot' ? '例：東京タワー / 清水寺' : '例：祇園・東山エリア散策'}
+                placeholder={
+                  nodeType === 'spot'
+                    ? '例：東京タワー / 清水寺'
+                    : nodeType === 'area'
+                      ? '例：祇園・東山エリア散策'
+                      : '例：ロープウェイで移動'
+                }
                 value={name}
                 autoComplete="off"
                 onFocus={() => {
@@ -426,11 +511,14 @@ export function AddSpotDialog({
             </div>
           </div>
 
-          {nodeType === 'spot' ? (
+          {nodeType === 'move' ? (
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label>移動手段</Label>
-                <Select value={transport} onValueChange={(v) => setTransport(v as SpotTransport)}>
+                <Select
+                  value={transport}
+                  onValueChange={(v) => handleTransportChange(v as SpotTransport)}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -461,7 +549,7 @@ export function AddSpotDialog({
                 />
               </div>
             </div>
-          ) : (
+          ) : nodeType === 'area' ? (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="area-spots">このエリアで回りたいスポット（順不同）</Label>
               <Textarea
@@ -472,13 +560,23 @@ export function AddSpotDialog({
                 onChange={(e) => setAreaSpotsText(e.target.value)}
               />
             </div>
+          ) : (
+            <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+              移動はスポットとは別に「移動」ノードとして追加します。
+            </div>
           )}
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="node-notes">メモ</Label>
             <Input
               id="node-notes"
-              placeholder={nodeType === 'area' ? '例：2-3時間でゆるく散策' : 'オプション'}
+              placeholder={
+                nodeType === 'area'
+                  ? '例：2-3時間でゆるく散策'
+                  : nodeType === 'move'
+                    ? '例：特急券予約済み / 途中で昼食'
+                    : 'オプション'
+              }
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
@@ -488,15 +586,21 @@ export function AddSpotDialog({
         <DialogFooter>
           <Button
             onClick={handleAdd}
-            disabled={!name || (nodeType === 'spot' && isResolvingSpotDetails)}
+            disabled={
+              (!name.trim() && nodeType !== 'move') || (nodeType === 'spot' && isResolvingSpotDetails)
+            }
             className="w-full"
           >
             {nodeType === 'spot' && isResolvingSpotDetails
               ? '座標を取得中...'
               : isEditingSpot
                 ? 'スポットを保存'
+                : isEditingMove
+                  ? '移動を保存'
                 : nodeType === 'spot'
                 ? 'スポットを追加'
+                : nodeType === 'move'
+                  ? '移動を追加'
                 : 'エリアを追加'}
           </Button>
         </DialogFooter>

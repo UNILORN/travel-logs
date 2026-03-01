@@ -4,6 +4,8 @@ import { use, useState, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useTripContext } from '@/lib/trip-context'
 import { TRANSPORT_LABELS } from '@/lib/types'
+import type { MoveNode, SpotNode } from '@/lib/types'
+import { getTripTimelineNodes, isMoveNode, isSpotNode } from '@/lib/timeline-nodes'
 import { BottomNav } from '@/components/shared/bottom-nav'
 import { ArrowLeft, Clock, Navigation as NavIcon, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
@@ -21,13 +23,25 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
 
   const trip = getTrip(id)
 
-  const allSpots = useMemo(
-    () => (trip ? [...trip.spots].sort((a, b) => {
-      if (a.day !== b.day) return a.day - b.day
-      return a.time.localeCompare(b.time)
-    }) : []),
-    [trip]
-  )
+  const spotEntries = useMemo(() => {
+    if (!trip) return [] as Array<{ spot: SpotNode; inboundMove?: MoveNode }>
+
+    const nodes = getTripTimelineNodes(trip)
+    const entries: Array<{ spot: SpotNode; inboundMove?: MoveNode }> = []
+
+    nodes.forEach((node, index) => {
+      if (!isSpotNode(node)) return
+      const prevNode = nodes[index - 1]
+      const inboundMove =
+        prevNode && isMoveNode(prevNode) && prevNode.day === node.day ? prevNode : undefined
+
+      entries.push({ spot: node, inboundMove })
+    })
+
+    return entries
+  }, [trip])
+
+  const allSpots = useMemo(() => spotEntries.map((entry) => entry.spot), [spotEntries])
 
   const handleMarkerClick = useCallback(
     (spotId: string) => {
@@ -57,7 +71,9 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
     )
   }
 
-  const activeSpot = allSpots[activeIndex]
+  const safeActiveIndex = Math.min(activeIndex, allSpots.length - 1)
+  const activeSpot = allSpots[safeActiveIndex]
+  const activeSpotEntry = spotEntries[safeActiveIndex]
 
   const openGoogleMaps = () => {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${activeSpot.lat},${activeSpot.lng}`
@@ -92,19 +108,19 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
           {/* Navigation arrows */}
           <div className="mb-2 flex items-center justify-between">
             <button
-              onClick={() => setActiveIndex(Math.max(0, activeIndex - 1))}
-              disabled={activeIndex === 0}
+              onClick={() => setActiveIndex(Math.max(0, safeActiveIndex - 1))}
+              disabled={safeActiveIndex === 0}
               className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30"
               aria-label="前のスポット"
             >
               <ChevronLeft className="size-5" />
             </button>
             <span className="text-xs text-muted-foreground">
-              {activeIndex + 1} / {allSpots.length}
+              {safeActiveIndex + 1} / {allSpots.length}
             </span>
             <button
-              onClick={() => setActiveIndex(Math.min(allSpots.length - 1, activeIndex + 1))}
-              disabled={activeIndex === allSpots.length - 1}
+              onClick={() => setActiveIndex(Math.min(allSpots.length - 1, safeActiveIndex + 1))}
+              disabled={safeActiveIndex === allSpots.length - 1}
               className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30"
               aria-label="次のスポット"
             >
@@ -120,7 +136,9 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
                 onClick={() => setActiveIndex(idx)}
                 className={cn(
                   'h-1.5 rounded-full transition-all',
-                  idx === activeIndex ? 'w-4 bg-primary' : 'w-1.5 bg-border hover:bg-muted-foreground'
+                  idx === safeActiveIndex
+                    ? 'w-4 bg-primary'
+                    : 'w-1.5 bg-border hover:bg-muted-foreground'
                 )}
                 aria-label={`${spot.name}を表示`}
               />
@@ -149,9 +167,10 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
               {activeSpot.notes && (
                 <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{activeSpot.notes}</p>
               )}
-              {activeSpot.distance > 0 && (
+              {activeSpotEntry?.inboundMove && activeSpotEntry.inboundMove.distance > 0 && (
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {TRANSPORT_LABELS[activeSpot.transport]} {activeSpot.distance}km
+                  {TRANSPORT_LABELS[activeSpotEntry.inboundMove.transport]}{' '}
+                  {activeSpotEntry.inboundMove.distance}km
                 </p>
               )}
             </div>

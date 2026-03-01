@@ -19,18 +19,17 @@ import {
   Trash2,
 } from 'lucide-react'
 import type {
-  AreaNode,
   MoveNode,
   Spot,
-  SpotNode,
   TimelineNode,
   TransportType,
   Trip,
 } from '@/lib/types'
 import { TRANSPORT_LABELS } from '@/lib/types'
 import { useTripContext } from '@/lib/trip-context'
+import { getTripTimelineNodes } from '@/lib/timeline-nodes'
 
-export type AddNodeKind = 'spot' | 'area'
+export type AddNodeKind = 'spot' | 'area' | 'move'
 
 export interface TimelineInsertDraft {
   day: number
@@ -52,67 +51,6 @@ const transportIcons: Partial<Record<TransportType, LucideIcon>> = {
   ropeway: CableCar,
 }
 
-function sortNodes(a: TimelineNode, b: TimelineNode) {
-  if (a.day !== b.day) return a.day - b.day
-  if (a.time !== b.time) return a.time.localeCompare(b.time)
-  return a.endTime.localeCompare(b.endTime)
-}
-
-function toTimelineNodes(trip: Trip): TimelineNode[] {
-  if (trip.nodes && trip.nodes.length > 0) {
-    return [...trip.nodes].sort(sortNodes)
-  }
-
-  const sortedSpots = [...trip.spots].sort((a, b) => {
-    if (a.day !== b.day) return a.day - b.day
-    return a.time.localeCompare(b.time)
-  })
-
-  const nodes: TimelineNode[] = []
-  const prevSpotByDay = new Map<number, SpotNode>()
-
-  for (const spot of sortedSpots) {
-    const prevSpot = prevSpotByDay.get(spot.day)
-
-    if (spot.distance > 0) {
-      nodes.push({
-        type: 'move',
-        id: `move-${spot.id}`,
-        name: `${TRANSPORT_LABELS[spot.transport]}で移動`,
-        time: prevSpot?.endTime ?? spot.time,
-        endTime: spot.time,
-        day: spot.day,
-        transport: spot.transport,
-        distance: spot.distance,
-        notes: '',
-        fromLat: prevSpot?.lat,
-        fromLng: prevSpot?.lng,
-        toLat: spot.lat,
-        toLng: spot.lng,
-      } satisfies MoveNode)
-    }
-
-    const spotNode = {
-      type: 'spot',
-      id: spot.id,
-      name: spot.name,
-      time: spot.time,
-      endTime: spot.endTime,
-      day: spot.day,
-      address: spot.address,
-      lat: spot.lat,
-      lng: spot.lng,
-      image: spot.image,
-      notes: spot.notes,
-    } satisfies SpotNode
-
-    nodes.push(spotNode)
-    prevSpotByDay.set(spot.day, spotNode)
-  }
-
-  return nodes.sort(sortNodes)
-}
-
 function TimeColumn({ startTime, endTime }: { startTime: string; endTime: string }) {
   return (
     <div className="flex w-14 shrink-0 flex-col items-end pt-0.5 text-[11px] leading-none">
@@ -132,6 +70,7 @@ function NodeBlock({
   isEditable,
   spot,
   onEditSpot,
+  onEditMove,
 }: {
   node: TimelineNode
   tripId: string
@@ -139,6 +78,7 @@ function NodeBlock({
   isEditable: boolean
   spot?: Spot
   onEditSpot?: (spot: Spot) => void
+  onEditMove?: (node: MoveNode) => void
 }) {
   const { removeSpot, removeNode } = useTripContext()
 
@@ -157,8 +97,30 @@ function NodeBlock({
 
         <div className="min-w-0 flex-1">
           <div className="rounded-lg border border-primary/15 bg-primary/5 p-3">
-            <div className="flex items-center gap-2 text-xs text-primary">
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium">移動</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs text-primary">
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium">移動</span>
+              </div>
+              {isEditable && (
+                <div className="flex items-center gap-1">
+                  {onEditMove && (
+                    <button
+                      onClick={() => onEditMove(node)}
+                      className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                      aria-label={`${node.name}を編集`}
+                    >
+                      <Pencil className="size-3" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => removeNode(tripId, node.id)}
+                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={`${node.name}を削除`}
+                  >
+                    <Trash2 className="size-3" />
+                  </button>
+                </div>
+              )}
             </div>
             <h4 className="mt-1 font-serif text-sm font-bold text-foreground">{node.name}</h4>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -321,6 +283,12 @@ function FreeTimeBlock({
               スポット
             </button>
             <button
+              onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'move' })}
+              className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              移動
+            </button>
+            <button
               onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'area' })}
               className="rounded bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20"
             >
@@ -375,6 +343,12 @@ function FreeTimeBlock({
               スポットを入れる
             </button>
             <button
+              onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'move' })}
+              className="flex-1 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              移動を入れる
+            </button>
+            <button
               onClick={() => onInsertNode({ day, time: startTime, endTime, type: 'area' })}
               className="flex-1 rounded-md bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20"
             >
@@ -392,11 +366,13 @@ export function Timeline({
   isEditable,
   onAddNode,
   onEditSpot,
+  onEditMove,
 }: {
   trip: Trip
   isEditable: boolean
   onAddNode: (draft: TimelineInsertDraft) => void
   onEditSpot?: (spot: Spot) => void
+  onEditMove?: (node: MoveNode) => void
 }) {
   const dayCount =
     Math.ceil(
@@ -404,7 +380,7 @@ export function Timeline({
         (1000 * 60 * 60 * 24)
     ) + 1
 
-  const allNodes = toTimelineNodes(trip)
+  const allNodes = getTripTimelineNodes(trip)
   const spotById = new Map(trip.spots.map((spot) => [spot.id, spot]))
   const days = Array.from({ length: dayCount }, (_, i) => i + 1)
 
@@ -454,6 +430,7 @@ export function Timeline({
                         isEditable={isEditable}
                         spot={node.type === 'spot' ? spotById.get(node.id) : undefined}
                         onEditSpot={onEditSpot}
+                        onEditMove={onEditMove}
                       />
                       {isEditable && nextNode && (
                         <FreeTimeBlock

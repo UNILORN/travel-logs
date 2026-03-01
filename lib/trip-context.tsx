@@ -15,6 +15,7 @@ import { initialTrips } from './mock-data'
 import { parseTripsFromJson, stringifyTrips } from '@/lib/trip-json'
 
 type NewTimelineNode = Omit<SpotNode, 'id'> | Omit<MoveNode, 'id'> | Omit<AreaNode, 'id'>
+type EditableTimelineNode = MoveNode | AreaNode
 
 interface TripContextValue {
   trips: Trip[]
@@ -26,6 +27,7 @@ interface TripContextValue {
   updateSpot: (tripId: string, spotId: string, updates: Partial<Spot>) => void
   removeSpot: (tripId: string, spotId: string) => void
   addNode: (tripId: string, node: NewTimelineNode) => void
+  updateNode: (tripId: string, nodeId: string, updates: Partial<EditableTimelineNode>) => void
   removeNode: (tripId: string, nodeId: string) => void
   addExpense: (tripId: string, expense: Omit<Expense, 'id' | 'total'>) => void
   removeExpense: (tripId: string, expenseId: string) => void
@@ -256,6 +258,39 @@ export function TripProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
+  const updateNode = useCallback(
+    (tripId: string, nodeId: string, updates: Partial<EditableTimelineNode>) => {
+      setTrips((prev) =>
+        prev.map((t) => {
+          if (t.id !== tripId) return t
+
+          const baseNodes = t.nodes ? [...t.nodes] : buildNodesFromLegacySpots(t.spots)
+          const target = baseNodes.find((node) => node.id === nodeId)
+          if (!target || target.type === 'spot') return t
+
+          const nodes = baseNodes
+            .map((node): TimelineNode => {
+              if (node.id !== nodeId) return node
+
+              return {
+                ...node,
+                ...updates,
+                id: node.id,
+                type: node.type,
+              } as TimelineNode
+            })
+            .sort(sortTimelineNodes)
+
+          return {
+            ...t,
+            nodes,
+          }
+        })
+      )
+    },
+    []
+  )
+
   const removeNode = useCallback((tripId: string, nodeId: string) => {
     setTrips((prev) =>
       prev.map((t) => {
@@ -322,6 +357,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
         updateSpot,
         removeSpot,
         addNode,
+        updateNode,
         removeNode,
         addExpense,
         removeExpense,

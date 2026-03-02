@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
-import { initialTrips } from '@/lib/mock-data'
+import { staticTripIds } from '@/lib/static-trips'
 
 export function generateStaticParams() {
-  return initialTrips.map((trip) => ({ id: trip.id }))
+  return staticTripIds.map((id) => ({ id }))
 }
 
 export default function TripLayout({ children }: { children: ReactNode }) {

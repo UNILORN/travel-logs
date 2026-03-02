@@ -11,7 +11,7 @@ import {
 } from 'react'
 import type { AreaNode, Expense, MoveNode, Spot, SpotNode, TimelineNode, Trip } from './types'
 import { TRANSPORT_LABELS } from './types'
-import { initialTrips } from './mock-data'
+import { staticTrips } from '@/lib/static-trips'
 import { parseTripsFromJson, stringifyTrips } from '@/lib/trip-json'
 
 type NewTimelineNode = Omit<SpotNode, 'id'> | Omit<MoveNode, 'id'> | Omit<AreaNode, 'id'>
@@ -101,7 +101,7 @@ function buildNodesFromLegacySpots(spots: Spot[]): TimelineNode[] {
 }
 
 export function TripProvider({ children }: { children: ReactNode }) {
-  const [trips, setTrips] = useState<Trip[]>(initialTrips)
+  const [trips, setTrips] = useState<Trip[]>(staticTrips)
   const didLoadFromStorageRef = useRef(false)
 
   useEffect(() => {

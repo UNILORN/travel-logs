@@ -398,6 +398,33 @@ export function Timeline({
 
   const allNodes = getTripTimelineNodes(trip)
   const spotById = new Map(trip.spots.map((spot) => [spot.id, spot]))
+  const getEditableSpot = (node: TimelineNode): Spot | undefined => {
+    if (node.type !== 'spot') return undefined
+
+    const linkedMove = allNodes.find(
+      (
+        candidate
+      ): candidate is Extract<TimelineNode, { type: 'move' }> =>
+        candidate.type === 'move' && candidate.id === `move-${node.id}`
+    )
+
+    return (
+      spotById.get(node.id) ?? {
+        id: node.id,
+        name: node.name,
+        time: node.time,
+        endTime: node.endTime,
+        day: node.day,
+        address: node.address,
+        lat: node.lat,
+        lng: node.lng,
+        image: node.image,
+        notes: node.notes,
+        transport: linkedMove?.transport ?? 'walk',
+        distance: linkedMove?.distance ?? 0,
+      }
+    )
+  }
   const days = Array.from({ length: dayCount }, (_, i) => i + 1)
 
   return (
@@ -444,7 +471,7 @@ export function Timeline({
                         tripId={trip.id}
                         isLast={idx === dayNodes.length - 1}
                         isEditable={isEditable}
-                        spot={node.type === 'spot' ? spotById.get(node.id) : undefined}
+                        spot={getEditableSpot(node)}
                         onEditSpot={onEditSpot}
                         onEditMove={onEditMove}
                       />

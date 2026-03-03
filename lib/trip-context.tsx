@@ -171,12 +171,50 @@ export function TripProvider({ children }: { children: ReactNode }) {
       prev.map((t) => {
         if (t.id !== tripId) return t
 
-        const spots = t.spots
-          .map((s) => (s.id === spotId ? { ...s, ...updates } : s))
-          .sort((a, b) => {
-            if (a.day !== b.day) return a.day - b.day
-            return a.time.localeCompare(b.time)
-          })
+        const existingSpot = t.spots.find((s) => s.id === spotId)
+        const existingSpotNode = t.nodes?.find(
+          (
+            node
+          ): node is Extract<TimelineNode, { type: 'spot' }> =>
+            node.type === 'spot' && node.id === spotId
+        )
+        const linkedMove = t.nodes?.find(
+          (
+            node
+          ): node is Extract<TimelineNode, { type: 'move' }> =>
+            node.type === 'move' && node.id === `move-${spotId}`
+        )
+
+        const baseSpot =
+          existingSpot ??
+          (existingSpotNode
+            ? {
+                id: spotId,
+                name: existingSpotNode.name,
+                time: existingSpotNode.time,
+                endTime: existingSpotNode.endTime,
+                day: existingSpotNode.day,
+                address: existingSpotNode.address,
+                lat: existingSpotNode.lat,
+                lng: existingSpotNode.lng,
+                image: existingSpotNode.image,
+                notes: existingSpotNode.notes,
+                transport: linkedMove?.transport ?? 'walk',
+                distance: linkedMove?.distance ?? 0,
+              }
+            : null)
+
+        if (!baseSpot) return t
+
+        const nextSpot = { ...baseSpot, ...updates }
+        const spots = (
+          existingSpot
+            ? t.spots.map((s) => (s.id === spotId ? nextSpot : s))
+            : [...t.spots, nextSpot]
+        ).sort((a, b) => {
+          if (a.day !== b.day) return a.day - b.day
+          return a.time.localeCompare(b.time)
+        })
 
         const mergedSpot = spots.find((s) => s.id === spotId)
         const mergedSpotIndex = mergedSpot ? spots.findIndex((s) => s.id === spotId) : -1

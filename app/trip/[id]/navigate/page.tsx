@@ -2,12 +2,14 @@
 
 import { use, useState, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
+import type { NavigateMapEntry } from '@/components/navigation/types'
+import { formatDistanceKm, hasVisibleMove } from '@/components/navigation/utils'
 import { useTripContext } from '@/lib/trip-context'
 import { TRANSPORT_LABELS } from '@/lib/types'
-import type { MoveNode, SpotNode } from '@/lib/types'
+import type { MoveNode } from '@/lib/types'
 import { getTripTimelineNodes, isMoveNode, isSpotNode } from '@/lib/timeline-nodes'
 import { BottomNav } from '@/components/shared/bottom-nav'
-import { ArrowLeft, Clock, Navigation as NavIcon, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -15,6 +17,32 @@ const MapView = dynamic(
   () => import('@/components/navigation/map-view').then((mod) => mod.MapView),
   { ssr: false, loading: () => <div className="flex h-full items-center justify-center bg-muted"><p className="text-sm text-muted-foreground">地図を読み込み中...</p></div> }
 )
+
+function MoveDirectionBadge({
+  move,
+  directionLabel,
+  accentClassName,
+  titleClassName,
+}: {
+  move: MoveNode
+  directionLabel: string
+  accentClassName: string
+  titleClassName?: string
+}) {
+  return (
+    <span className="inline-flex max-w-full items-start gap-2 rounded-2xl border border-border bg-muted/70 px-2.5 py-1.5">
+      <span className={cn('shrink-0 text-[11px] font-semibold', accentClassName)}>{directionLabel}</span>
+      <span className="min-w-0">
+        <span className={cn('block truncate text-[11px] font-medium text-foreground', titleClassName)}>
+          {move.name}
+        </span>
+        <span className="block text-[10px] text-muted-foreground">
+          {TRANSPORT_LABELS[move.transport]} {formatDistanceKm(move.distance)}
+        </span>
+      </span>
+    </span>
+  )
+}
 
 export default function NavigatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -24,18 +52,26 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
   const trip = getTrip(id)
 
   const spotEntries = useMemo(() => {
-    if (!trip) return [] as Array<{ spot: SpotNode; inboundMove?: MoveNode }>
+    if (!trip) return [] as NavigateMapEntry[]
 
     const nodes = getTripTimelineNodes(trip)
-    const entries: Array<{ spot: SpotNode; inboundMove?: MoveNode }> = []
+    const entries: NavigateMapEntry[] = []
 
     nodes.forEach((node, index) => {
       if (!isSpotNode(node)) return
       const prevNode = nodes[index - 1]
-      const inboundMove =
+      const nextNode = nodes[index + 1]
+      const prevMove =
         prevNode && isMoveNode(prevNode) && prevNode.day === node.day ? prevNode : undefined
+      const nextMove =
+        nextNode && isMoveNode(nextNode) && nextNode.day === node.day ? nextNode : undefined
 
-      entries.push({ spot: node, inboundMove })
+      entries.push({
+        spot: node,
+        prevMove,
+        nextMove,
+        sequence: entries.length + 1,
+      })
     })
 
     return entries
@@ -74,11 +110,8 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
   const safeActiveIndex = Math.min(activeIndex, allSpots.length - 1)
   const activeSpot = allSpots[safeActiveIndex]
   const activeSpotEntry = spotEntries[safeActiveIndex]
-
-  const openGoogleMaps = () => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${activeSpot.lat},${activeSpot.lng}`
-    window.open(url, '_blank')
-  }
+  const prevMove = activeSpotEntry?.prevMove
+  const nextMove = activeSpotEntry?.nextMove
 
   return (
     <div className="flex h-screen flex-col bg-background">
@@ -96,7 +129,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
       {/* Map */}
       <div className="relative flex-1">
         <MapView
-          spots={allSpots}
+          entries={spotEntries}
           activeSpotId={activeSpot?.id ?? null}
           onMarkerClick={handleMarkerClick}
         />
@@ -167,24 +200,27 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
               {activeSpot.notes && (
                 <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{activeSpot.notes}</p>
               )}
-              {activeSpotEntry?.inboundMove && activeSpotEntry.inboundMove.distance > 0 && (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {TRANSPORT_LABELS[activeSpotEntry.inboundMove.transport]}{' '}
-                  {activeSpotEntry.inboundMove.distance}km
-                </p>
+              {(hasVisibleMove(prevMove) || hasVisibleMove(nextMove)) && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {hasVisibleMove(prevMove) && (
+                    <MoveDirectionBadge
+                      move={prevMove}
+                      directionLabel="← Prev"
+                      accentClassName="text-primary"
+                    />
+                  )}
+                  {hasVisibleMove(nextMove) && (
+                    <MoveDirectionBadge
+                      move={nextMove}
+                      directionLabel="Next →"
+                      accentClassName="text-[var(--chart-3)]"
+                      titleClassName="text-[10px]"
+                    />
+                  )}
+                </div>
               )}
             </div>
           </div>
-
-          {/* Google Maps Button */}
-          <button
-            onClick={openGoogleMaps}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            <NavIcon className="size-4" />
-            Google Maps でナビ開始
-            <ExternalLink className="size-3" />
-          </button>
         </div>
       </div>
 

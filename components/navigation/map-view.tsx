@@ -61,16 +61,21 @@ function buildRouteChip(label: string, arrow: string, move: MoveNode) {
 
 type RouteChip = ReturnType<typeof buildRouteChip> & {
   variant: 'prev' | 'next'
+  onClick: () => void
 }
 
 export function MapView({
   entries,
   activeSpotId,
   onMarkerClick,
+  onPrevClick,
+  onNextClick,
 }: {
   entries: NavigateMapEntry[]
   activeSpotId: string | null
   onMarkerClick: (spotId: string) => void
+  onPrevClick: () => void
+  onNextClick: () => void
 }) {
   const mapRef = useRef<L.Map | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
@@ -96,6 +101,7 @@ export function MapView({
       chips.push({
         ...buildRouteChip('Prev', '←', visiblePrevMove),
         variant: 'prev' as const,
+        onClick: onPrevClick,
       })
     }
 
@@ -103,11 +109,12 @@ export function MapView({
       chips.push({
         ...buildRouteChip('Next', '→', visibleNextMove),
         variant: 'next' as const,
+        onClick: onNextClick,
       })
     }
 
     return chips
-  }, [visiblePrevMove, visibleNextMove])
+  }, [onNextClick, onPrevClick, visiblePrevMove, visibleNextMove])
 
   // Initialize map
   useEffect(() => {
@@ -236,7 +243,13 @@ export function MapView({
           }}
         >
           {routeChips.map((chip) => (
-            <div key={`${chip.variant}-${chip.label}`} className={`map-route-chip map-route-chip--${chip.variant}`}>
+            <button
+              key={`${chip.variant}-${chip.label}`}
+              type="button"
+              onClick={chip.onClick}
+              className={`map-route-chip map-route-chip--${chip.variant}`}
+              aria-label={`${chip.label} の経路へ移動`}
+            >
               <span className="map-route-chip__label">
                 <span className="map-route-chip__arrow">{chip.arrow}</span>
                 {chip.label}
@@ -245,7 +258,7 @@ export function MapView({
                 <span className="map-route-chip__title">{chip.title}</span>
                 <span className="map-route-chip__detail">{chip.detail}</span>
               </span>
-            </div>
+            </button>
           ))}
         </div>
       )}

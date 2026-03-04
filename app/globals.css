@@ -226,15 +226,33 @@
 .map-route-chip {
   display: flex;
   align-items: flex-start;
+  width: 100%;
   gap: 0.65rem;
   padding: 0.55rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--card);
   color: var(--foreground);
+  text-align: left;
+  appearance: none;
+  pointer-events: auto;
+  cursor: pointer;
   box-shadow: 0 14px 28px rgb(15 23 42 / 0.12);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.map-route-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 32px rgb(15 23 42 / 0.16);
+}
+
+.map-route-chip:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 .map-route-chip__label {

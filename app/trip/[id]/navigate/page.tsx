@@ -1,9 +1,10 @@
 'use client'
 
-import { use, useState, useCallback, useMemo } from 'react'
+import { use, useState, useCallback, useMemo, useRef, type TouchEvent } from 'react'
 import dynamic from 'next/dynamic'
 import type { NavigateMapEntry } from '@/components/navigation/types'
 import { formatDistanceKm, hasVisibleMove } from '@/components/navigation/utils'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useTripContext } from '@/lib/trip-context'
 import { TRANSPORT_LABELS } from '@/lib/types'
 import type { MoveNode } from '@/lib/types'
@@ -18,6 +19,9 @@ const MapView = dynamic(
   { ssr: false, loading: () => <div className="flex h-full items-center justify-center bg-muted"><p className="text-sm text-muted-foreground">地図を読み込み中...</p></div> }
 )
 
+const SWIPE_THRESHOLD_PX = 48
+const SWIPE_DIRECTION_RATIO = 1.2
+
 function MoveDirectionBadge({
   move,
   directionLabel,
@@ -30,13 +34,15 @@ function MoveDirectionBadge({
   titleClassName?: string
 }) {
   return (
-    <span className="inline-flex max-w-full items-start gap-2 rounded-2xl border border-border bg-muted/70 px-2.5 py-1.5">
-      <span className={cn('shrink-0 text-[11px] font-semibold', accentClassName)}>{directionLabel}</span>
-      <span className="min-w-0">
+    <span className="inline-flex h-11 w-full max-w-[13.5rem] min-w-0 box-border items-center gap-2 rounded-2xl border border-border bg-muted/70 px-2.5">
+      <span className={cn('w-12 shrink-0 text-[11px] font-semibold leading-none', accentClassName)}>
+        {directionLabel}
+      </span>
+      <span className="flex h-full min-w-0 flex-1 flex-col justify-center">
         <span className={cn('block truncate text-[11px] font-medium text-foreground', titleClassName)}>
           {move.name}
         </span>
-        <span className="block text-[10px] text-muted-foreground">
+        <span className="block truncate text-[10px] leading-none text-muted-foreground">
           {TRANSPORT_LABELS[move.transport]} {formatDistanceKm(move.distance)}
         </span>
       </span>
@@ -47,7 +53,9 @@ function MoveDirectionBadge({
 export default function NavigatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { getTrip } = useTripContext()
+  const isMobile = useIsMobile()
   const [activeIndex, setActiveIndex] = useState(0)
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null)
 
   const trip = getTrip(id)
 
@@ -86,6 +94,49 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
     },
     [allSpots]
   )
+  const goPrev = useCallback(() => {
+    setActiveIndex((current) => Math.max(0, current - 1))
+  }, [])
+  const goNext = useCallback(() => {
+    setActiveIndex((current) => Math.min(Math.max(0, allSpots.length - 1), current + 1))
+  }, [allSpots.length])
+  const handleCardTouchStart = useCallback(
+    (event: TouchEvent<HTMLDivElement>) => {
+      if (!isMobile || event.touches.length !== 1) return
+
+      const touch = event.touches[0]
+      swipeStartRef.current = { x: touch.clientX, y: touch.clientY }
+    },
+    [isMobile]
+  )
+  const handleCardTouchEnd = useCallback(
+    (event: TouchEvent<HTMLDivElement>) => {
+      if (!isMobile || !swipeStartRef.current || event.changedTouches.length !== 1) return
+
+      const touch = event.changedTouches[0]
+      const deltaX = touch.clientX - swipeStartRef.current.x
+      const deltaY = touch.clientY - swipeStartRef.current.y
+      swipeStartRef.current = null
+
+      if (
+        Math.abs(deltaX) < SWIPE_THRESHOLD_PX ||
+        Math.abs(deltaX) < Math.abs(deltaY) * SWIPE_DIRECTION_RATIO
+      ) {
+        return
+      }
+
+      if (deltaX < 0) {
+        goNext()
+        return
+      }
+
+      goPrev()
+    },
+    [goNext, goPrev, isMobile]
+  )
+  const resetSwipe = useCallback(() => {
+    swipeStartRef.current = null
+  }, [])
 
   if (!trip) {
     return (
@@ -132,16 +183,23 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
           entries={spotEntries}
           activeSpotId={activeSpot?.id ?? null}
           onMarkerClick={handleMarkerClick}
+          onPrevClick={goPrev}
+          onNextClick={goNext}
         />
       </div>
 
       {/* Spot Card */}
-      <div className="border-t border-border bg-card px-4 pb-16 pt-4">
+      <div
+        className="border-t border-border bg-card px-4 pb-16 pt-4"
+        onTouchStart={handleCardTouchStart}
+        onTouchEnd={handleCardTouchEnd}
+        onTouchCancel={resetSwipe}
+      >
         <div className="mx-auto max-w-md">
           {/* Navigation arrows */}
           <div className="mb-2 flex items-center justify-between">
             <button
-              onClick={() => setActiveIndex(Math.max(0, safeActiveIndex - 1))}
+              onClick={goPrev}
               disabled={safeActiveIndex === 0}
               className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30"
               aria-label="前のスポット"
@@ -152,7 +210,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
               {safeActiveIndex + 1} / {allSpots.length}
             </span>
             <button
-              onClick={() => setActiveIndex(Math.min(allSpots.length - 1, safeActiveIndex + 1))}
+              onClick={goNext}
               disabled={safeActiveIndex === allSpots.length - 1}
               className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30"
               aria-label="次のスポット"
@@ -179,7 +237,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
           </div>
 
           {/* Active spot details */}
-          <div className="flex gap-3">
+          <div className="flex min-h-[7.75rem] gap-3">
             {activeSpot.image && (
               <img
                 src={activeSpot.image}
@@ -196,29 +254,35 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
                 <Clock className="size-3" />
                 <span>{activeSpot.time} - {activeSpot.endTime}</span>
               </div>
-              <h3 className="mt-1 font-serif text-base font-bold text-foreground">{activeSpot.name}</h3>
-              {activeSpot.notes && (
-                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{activeSpot.notes}</p>
-              )}
-              {(hasVisibleMove(prevMove) || hasVisibleMove(nextMove)) && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {hasVisibleMove(prevMove) && (
-                    <MoveDirectionBadge
-                      move={prevMove}
-                      directionLabel="← Prev"
-                      accentClassName="text-primary"
-                    />
-                  )}
-                  {hasVisibleMove(nextMove) && (
-                    <MoveDirectionBadge
-                      move={nextMove}
-                      directionLabel="Next →"
-                      accentClassName="text-[var(--chart-3)]"
-                      titleClassName="text-[10px]"
-                    />
-                  )}
-                </div>
-              )}
+              <h3 className="mt-1 truncate font-serif text-base font-bold text-foreground">
+                {activeSpot.name}
+              </h3>
+              <div className="mt-0.5 min-h-[1rem]">
+                {activeSpot.notes && (
+                  <p className="text-xs text-muted-foreground line-clamp-1">{activeSpot.notes}</p>
+                )}
+              </div>
+              <div className="mt-2 h-[5.75rem] overflow-hidden">
+                {(hasVisibleMove(prevMove) || hasVisibleMove(nextMove)) && (
+                  <div className="flex h-full flex-wrap content-start gap-1">
+                    {hasVisibleMove(prevMove) && (
+                      <MoveDirectionBadge
+                        move={prevMove}
+                        directionLabel="← Prev"
+                        accentClassName="text-primary"
+                      />
+                    )}
+                    {hasVisibleMove(nextMove) && (
+                      <MoveDirectionBadge
+                        move={nextMove}
+                        directionLabel="Next →"
+                        accentClassName="text-[var(--chart-3)]"
+                        titleClassName="text-[10px]"
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

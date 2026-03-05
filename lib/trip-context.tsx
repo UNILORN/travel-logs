@@ -32,12 +32,40 @@ interface TripContextValue {
   addExpense: (tripId: string, expense: Omit<Expense, 'id' | 'total'>) => void
   removeExpense: (tripId: string, expenseId: string) => void
   archiveTrip: (tripId: string) => void
+  appendTrips: (nextTrips: Trip[]) => void
   replaceTrips: (nextTrips: Trip[]) => void
 }
 
 const TripContext = createContext<TripContextValue | null>(null)
 
 const TRIPS_STORAGE_KEY = 'travel-logs.trips.v1'
+
+function createUniqueTripId(baseId: string, usedIds: Set<string>) {
+  if (!usedIds.has(baseId)) return baseId
+
+  let suffix = 1
+  let nextId = `${baseId}-imported-${suffix}`
+  while (usedIds.has(nextId)) {
+    suffix += 1
+    nextId = `${baseId}-imported-${suffix}`
+  }
+
+  return nextId
+}
+
+function appendTripsWithoutOverwrite(currentTrips: Trip[], importedTrips: Trip[]) {
+  const usedIds = new Set(currentTrips.map((trip) => trip.id))
+
+  const normalizedImported = importedTrips.map((trip) => {
+    const nextId = createUniqueTripId(trip.id, usedIds)
+    usedIds.add(nextId)
+
+    if (nextId === trip.id) return trip
+    return { ...trip, id: nextId }
+  })
+
+  return [...currentTrips, ...normalizedImported]
+}
 
 function sortTimelineNodes(a: TimelineNode, b: TimelineNode) {
   if (a.day !== b.day) return a.day - b.day
@@ -384,6 +412,10 @@ export function TripProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
+  const appendTrips = useCallback((nextTrips: Trip[]) => {
+    setTrips((prev) => appendTripsWithoutOverwrite(prev, nextTrips))
+  }, [])
+
   const replaceTrips = useCallback((nextTrips: Trip[]) => {
     setTrips(nextTrips)
   }, [])
@@ -405,6 +437,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
         addExpense,
         removeExpense,
         archiveTrip,
+        appendTrips,
         replaceTrips,
       }}
     >

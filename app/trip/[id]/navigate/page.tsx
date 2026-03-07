@@ -8,7 +8,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useTripContext } from '@/lib/trip-context'
 import { TRANSPORT_LABELS } from '@/lib/types'
 import type { MoveNode } from '@/lib/types'
-import { getTripTimelineNodes, isMoveNode, isSpotNode } from '@/lib/timeline-nodes'
+import { getTripTimelineNodes, isAreaNode, isMoveNode, isSpotNode } from '@/lib/timeline-nodes'
 import { resolveTripIdFromSearch } from '@/lib/trip-id'
 import { buildTripPageHref } from '@/lib/trip-route'
 import { BottomNav } from '@/components/shared/bottom-nav'
@@ -115,15 +115,17 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
       if (!isSpotNode(node)) return
       const prevNode = nodes[index - 1]
       const nextNode = nodes[index + 1]
-      const prevMove =
-        prevNode && isMoveNode(prevNode) && prevNode.day === node.day ? prevNode : undefined
-      const nextMove =
-        nextNode && isMoveNode(nextNode) && nextNode.day === node.day ? nextNode : undefined
+      const prevMove = prevNode && isMoveNode(prevNode) ? prevNode : undefined
+      const nextMove = nextNode && isMoveNode(nextNode) ? nextNode : undefined
+      const prevArea = prevNode && isAreaNode(prevNode) ? prevNode : undefined
+      const nextArea = nextNode && isAreaNode(nextNode) ? nextNode : undefined
 
       entries.push({
         spot: node,
         prevMove,
         nextMove,
+        prevArea,
+        nextArea,
         sequence: entries.length + 1,
       })
     })

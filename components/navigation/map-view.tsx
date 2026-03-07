@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { MoveNode } from '@/lib/types'
+import type { AreaNode, MoveNode } from '@/lib/types'
 import { TRANSPORT_LABELS } from '@/lib/types'
 import type { NavigateMapEntry } from '@/components/navigation/types'
 import { formatDistanceKm, hasVisibleMove } from '@/components/navigation/utils'
@@ -52,6 +52,7 @@ function createSpotMarkerIcon({ sequence, name, isActive }: { sequence: number; 
 
 function buildRouteChip(label: string, arrow: string, move: MoveNode) {
   return {
+    kind: 'move' as const,
     label,
     arrow,
     title: truncateLabel(move.name, 18),
@@ -59,8 +60,20 @@ function buildRouteChip(label: string, arrow: string, move: MoveNode) {
   }
 }
 
-type RouteChip = ReturnType<typeof buildRouteChip> & {
-  variant: 'prev' | 'next'
+function buildAreaChip(label: string, arrow: string, area: AreaNode) {
+  const spotCountDetail =
+    area.spotNames.length > 0 ? `${area.spotNames.length}スポット候補` : 'スポット候補未設定'
+  return {
+    kind: 'area' as const,
+    label,
+    arrow,
+    title: truncateLabel(area.name, 18),
+    detail: `${spotCountDetail} · ${area.time}-${area.endTime}`,
+  }
+}
+
+type RouteChip = (ReturnType<typeof buildRouteChip> | ReturnType<typeof buildAreaChip>) & {
+  variant: 'prev' | 'next' | 'area-prev' | 'area-next'
   onClick: () => void
 }
 
@@ -92,6 +105,8 @@ export function MapView({
   )
   const prevMove = activeEntry?.prevMove
   const nextMove = activeEntry?.nextMove
+  const prevArea = activeEntry?.prevArea
+  const nextArea = activeEntry?.nextArea
   const visiblePrevMove = hasVisibleMove(prevMove) ? prevMove : undefined
   const visibleNextMove = hasVisibleMove(nextMove) ? nextMove : undefined
   const routeChips = useMemo(() => {
@@ -113,8 +128,24 @@ export function MapView({
       })
     }
 
+    if (prevArea) {
+      chips.push({
+        ...buildAreaChip('Prev Area', '◁', prevArea),
+        variant: 'area-prev' as const,
+        onClick: onPrevClick,
+      })
+    }
+
+    if (nextArea) {
+      chips.push({
+        ...buildAreaChip('Next Area', '▷', nextArea),
+        variant: 'area-next' as const,
+        onClick: onNextClick,
+      })
+    }
+
     return chips
-  }, [onNextClick, onPrevClick, visiblePrevMove, visibleNextMove])
+  }, [nextArea, onNextClick, onPrevClick, prevArea, visiblePrevMove, visibleNextMove])
 
   // Initialize map
   useEffect(() => {
@@ -247,8 +278,8 @@ export function MapView({
               key={`${chip.variant}-${chip.label}`}
               type="button"
               onClick={chip.onClick}
-              className={`map-route-chip map-route-chip--${chip.variant}`}
-              aria-label={`${chip.label} の経路へ移動`}
+              className={`map-route-chip map-route-chip--${chip.variant}${chip.kind === 'area' ? ' map-route-chip--area' : ''}`}
+              aria-label={`${chip.label} の情報へ移動`}
             >
               <span className="map-route-chip__label">
                 <span className="map-route-chip__arrow">{chip.arrow}</span>
@@ -256,7 +287,7 @@ export function MapView({
               </span>
               <span className="map-route-chip__body">
                 <span className="map-route-chip__title">{chip.title}</span>
-                <span className="map-route-chip__detail">{chip.detail}</span>
+                <span className={`map-route-chip__detail${chip.kind === 'area' ? ' map-route-chip__detail--area' : ''}`}>{chip.detail}</span>
               </span>
             </button>
           ))}

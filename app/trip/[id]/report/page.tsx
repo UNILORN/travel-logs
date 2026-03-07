@@ -68,6 +68,14 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
       value,
     }))
 
+    const topSpending = spendingData.reduce<{ name: string; value: number } | null>(
+      (max, item) => {
+        if (!max || item.value > max.value) return item
+        return max
+      },
+      null
+    )
+
     // Daily distances
     const dailyDistances: { day: string; distance: number }[] = []
     for (let d = 1; d <= dayCount; d++) {
@@ -77,6 +85,20 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
       dailyDistances.push({ day: `Day ${d}`, distance: Math.round(dayDistance * 10) / 10 })
     }
 
+    const busiestDay = dailyDistances.reduce<{ day: string; distance: number } | null>(
+      (max, item) => {
+        if (!max || item.distance > max.distance) return item
+        return max
+      },
+      null
+    )
+
+    const budgetUsageRate = trip.budget > 0 ? Math.round((totalSpent / trip.budget) * 100) : null
+    const remainingBudget = trip.budget - totalSpent
+    const avgSpendPerDay = Math.round(totalSpent / dayCount)
+    const avgDistancePerDay = Math.round((totalDistance / dayCount) * 10) / 10
+    const costPerKm = totalDistance > 0 ? Math.round(totalSpent / totalDistance) : null
+
     return {
       totalDistance: Math.round(totalDistance * 10) / 10,
       totalSpent,
@@ -85,6 +107,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
       transportData,
       spendingData,
       dailyDistances,
+      budgetUsageRate,
+      remainingBudget,
+      avgSpendPerDay,
+      avgDistancePerDay,
+      costPerKm,
+      topSpending,
+      busiestDay,
     }
   }, [trip])
 
@@ -145,6 +174,89 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             value={`${stats.dayCount}日間`}
           />
         </div>
+
+        <section className="mt-6">
+          <h2 className="mb-3 font-serif text-sm font-bold text-muted-foreground tracking-wider">
+            旅行者向けインサイト
+          </h2>
+          <div className="grid gap-3">
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-foreground">予算の進み具合</p>
+                <p className="text-xs text-muted-foreground">
+                  {trip.budget.toLocaleString()}円 予算
+                </p>
+              </div>
+              <p className="mt-2 font-serif text-lg font-bold text-foreground">
+                {stats.budgetUsageRate !== null
+                  ? `${Math.max(0, stats.budgetUsageRate)}% 使用`
+                  : '予算未設定'}
+              </p>
+              {stats.budgetUsageRate !== null && (
+                <>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full rounded-full ${
+                        stats.budgetUsageRate > 100 ? 'bg-destructive' : 'bg-primary'
+                      }`}
+                      style={{ width: `${Math.min(Math.max(stats.budgetUsageRate, 0), 100)}%` }}
+                    />
+                  </div>
+                  <p
+                    className={`mt-2 text-xs ${
+                      stats.remainingBudget >= 0 ? 'text-muted-foreground' : 'text-destructive'
+                    }`}
+                  >
+                    {stats.remainingBudget >= 0
+                      ? `残り ${stats.remainingBudget.toLocaleString()}円`
+                      : `${Math.abs(stats.remainingBudget).toLocaleString()}円 オーバー`}
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                <p className="text-xs text-muted-foreground">1日あたり支出</p>
+                <p className="mt-1 font-serif text-lg font-bold text-foreground">
+                  {stats.avgSpendPerDay.toLocaleString()}円
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  移動 {stats.avgDistancePerDay}km / 日
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                <p className="text-xs text-muted-foreground">移動コスト効率</p>
+                <p className="mt-1 font-serif text-lg font-bold text-foreground">
+                  {stats.costPerKm !== null ? `${stats.costPerKm.toLocaleString()}円/km` : '-'}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  総移動 {stats.totalDistance}km
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+              <p className="text-sm font-medium text-foreground">要チェック日・費目</p>
+              <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                <p>
+                  最長移動日:{' '}
+                  <span className="font-medium text-foreground">
+                    {stats.busiestDay ? `${stats.busiestDay.day} (${stats.busiestDay.distance}km)` : '-'}
+                  </span>
+                </p>
+                <p>
+                  最大支出カテゴリ:{' '}
+                  <span className="font-medium text-foreground">
+                    {stats.topSpending
+                      ? `${stats.topSpending.name} (${stats.topSpending.value.toLocaleString()}円)`
+                      : '-'}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Transport Breakdown */}
         {stats.transportData.length > 0 && (

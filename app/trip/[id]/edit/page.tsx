@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import type { MoveNode, Spot } from '@/lib/types'
 import { ItineraryHeader } from '@/components/itinerary/itinerary-header'
 import type { TimelineInsertDraft } from '@/components/itinerary/timeline'
@@ -20,6 +20,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
   const [timelineMode, setTimelineMode] = useState<'view' | 'edit'>('view')
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null)
   const [editingMove, setEditingMove] = useState<MoveNode | null>(null)
+  const [activeDay, setActiveDay] = useState(1)
 
   useEffect(() => {
     setTripId(resolveTripIdFromSearch(id, window.location.search))
@@ -34,6 +35,12 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
     )
   }
 
+  const dayCount =
+    Math.ceil(
+      (new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) /
+        (1000 * 60 * 60 * 24)
+    ) + 1
+  const days = useMemo(() => Array.from({ length: dayCount }, (_, i) => i + 1), [dayCount])
   const isEditMode = timelineMode === 'edit'
 
   const handleOpenAddNode = (nextDraft: TimelineInsertDraft) => {
@@ -60,11 +67,73 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
     setAddSpotOpen(true)
   }
 
+  useEffect(() => {
+    if (days.length === 0) return
+
+    const updateActiveDay = () => {
+      let currentDay = days[0]
+
+      for (const day of days) {
+        const section = document.getElementById(`day-${day}`)
+        if (!section) continue
+        if (section.getBoundingClientRect().top <= 120) {
+          currentDay = day
+        }
+      }
+
+      setActiveDay(currentDay)
+    }
+
+    updateActiveDay()
+    window.addEventListener('scroll', updateActiveDay, { passive: true })
+    window.addEventListener('resize', updateActiveDay)
+
+    return () => {
+      window.removeEventListener('scroll', updateActiveDay)
+      window.removeEventListener('resize', updateActiveDay)
+    }
+  }, [days])
+
+  const handleJumpToDay = (day: number) => {
+    const section = document.getElementById(`day-${day}`)
+    if (!section) return
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setActiveDay(day)
+  }
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <ItineraryHeader trip={trip} />
 
-      <main className="mx-auto max-w-md px-4 pt-4">
+      <div className="fixed inset-x-0 top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-3 py-2">
+          <p className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            目次
+          </p>
+          <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto pb-0.5">
+            {days.map((day) => {
+              const isActive = day === activeDay
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => handleJumpToDay(day)}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-sm transition-colors ${
+                    isActive
+                      ? 'bg-primary/10 font-medium text-primary'
+                      : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                  aria-current={isActive ? 'true' : undefined}
+                >
+                  Day {day}
+                </button>
+              )
+            })}
+          </nav>
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-md px-4 pt-20">
         <div className="mb-4">
           <p className="mb-2 text-xs font-medium text-muted-foreground">旅程の表示</p>
           <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1">

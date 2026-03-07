@@ -439,7 +439,7 @@ export function Timeline({
         const weekDay = weekDays[startDate.getDay()]
 
         return (
-          <section key={day}>
+          <section key={day} id={`day-${day}`} data-day-section="true" className="scroll-mt-24">
             <div className="mb-3 flex items-baseline gap-2">
               <h3 className="font-serif text-base font-bold text-foreground">Day {day}</h3>
               <span className="text-xs text-muted-foreground">

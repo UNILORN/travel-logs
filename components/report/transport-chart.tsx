@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
 
 const COLORS = [
@@ -11,62 +12,75 @@ const COLORS = [
 ]
 
 export function TransportChart({ data }: { data: { name: string; value: number }[] }) {
-  const chartData = data.map((item, index) => ({
-    ...item,
-    itemStyle: { color: COLORS[index % COLORS.length] },
-  }))
+  const chartData = useMemo(
+    () =>
+      data.map((item, index) => ({
+        ...item,
+        itemStyle: { color: COLORS[index % COLORS.length] },
+      })),
+    [data]
+  )
 
-  const option = {
-    animationDuration: 500,
-    tooltip: {
-      trigger: 'item',
-      valueFormatter: (value: number) => `${value}km`,
-    },
-    legend: {
-      type: 'scroll' as const,
-      bottom: 0,
-      left: 'center',
-      itemWidth: 12,
-      textStyle: { fontSize: 11, color: 'oklch(0.42 0.02 60)' },
-    },
-    series: [
-      {
-        name: '移動距離',
-        type: 'pie' as const,
-        radius: ['48%', '72%'],
-        center: ['50%', '44%'],
-        minAngle: 8,
-        avoidLabelOverlap: true,
-        itemStyle: {
-          borderRadius: 6,
-          borderColor: 'oklch(0.99 0.003 80)',
-          borderWidth: 2,
-        },
-        label: {
-          show: true,
-          fontSize: 11,
-          formatter: '{b|{b}}\n{v|{c}km}',
-          rich: {
-            b: { fontSize: 11, color: 'oklch(0.28 0.03 60)', fontWeight: 600 },
-            v: { fontSize: 10, color: 'oklch(0.42 0.02 60)' },
-          },
-        },
-        labelLine: {
-          length: 10,
-          length2: 8,
-        },
-        labelLayout: {
-          hideOverlap: true,
-          moveOverlap: 'shiftY' as const,
-        },
-        data: chartData,
+  const option = useMemo(
+    () => ({
+      animationDuration: 500,
+      animationDurationUpdate: 150,
+      tooltip: {
+        trigger: 'item',
+        renderMode: 'richText' as const,
+        transitionDuration: 0,
+        valueFormatter: (value: number) => `${value}km`,
       },
-    ],
-  }
+      legend: {
+        type: 'scroll' as const,
+        bottom: 0,
+        left: 'center',
+        itemWidth: 12,
+        textStyle: { fontSize: 11, color: 'oklch(0.42 0.02 60)' },
+      },
+      series: [
+        {
+          name: '移動距離',
+          type: 'pie' as const,
+          radius: ['48%', '72%'],
+          center: ['50%', '44%'],
+          minAngle: 8,
+          avoidLabelOverlap: true,
+          itemStyle: {
+            borderRadius: 6,
+            borderColor: 'oklch(0.99 0.003 80)',
+            borderWidth: 2,
+          },
+          emphasis: {
+            scale: false,
+          },
+          label: {
+            show: true,
+            fontSize: 11,
+            formatter: '{b|{b}}\n{v|{c}km}',
+            rich: {
+              b: { fontSize: 11, color: 'oklch(0.28 0.03 60)', fontWeight: 600 },
+              v: { fontSize: 10, color: 'oklch(0.42 0.02 60)' },
+            },
+          },
+          labelLine: {
+            length: 10,
+            length2: 8,
+          },
+          labelLayout: {
+            hideOverlap: true,
+            moveOverlap: 'shiftY' as const,
+          },
+          data: chartData,
+        },
+      ],
+    }),
+    [chartData]
+  )
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <ReactECharts option={option} style={{ height: 260, width: '100%' }} />
+      <ReactECharts option={option} lazyUpdate style={{ height: 260, width: '100%' }} />
     </div>
   )
 }

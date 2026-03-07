@@ -310,6 +310,24 @@
   font-size: 0.68rem;
 }
 
+.map-route-chip--area {
+  border-color: color-mix(in srgb, var(--chart-2) 50%, var(--border));
+  background: color-mix(in srgb, var(--card) 88%, var(--chart-2) 12%);
+}
+
+.map-route-chip--area .map-route-chip__title {
+  font-weight: 800;
+}
+
+.map-route-chip--area-prev .map-route-chip__label,
+.map-route-chip--area-next .map-route-chip__label {
+  color: var(--chart-2);
+}
+
+.map-route-chip__detail--area {
+  color: color-mix(in srgb, var(--chart-2) 62%, var(--foreground));
+}
+
 @media (max-width: 640px) {
   .map-route-overlay {
     width: min(13.5rem, calc(100% - 1.5rem));

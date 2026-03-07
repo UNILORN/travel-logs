@@ -1,4 +1,12 @@
-import { TRANSPORT_LABELS, type MoveNode, type Spot, type SpotNode, type TimelineNode, type Trip } from './types'
+import {
+  TRANSPORT_LABELS,
+  type AreaNode,
+  type MoveNode,
+  type Spot,
+  type SpotNode,
+  type TimelineNode,
+  type Trip,
+} from './types'
 
 export function sortTimelineNodes(a: TimelineNode, b: TimelineNode) {
   if (a.day !== b.day) return a.day - b.day
@@ -75,4 +83,8 @@ export function isSpotNode(node: TimelineNode): node is SpotNode {
 
 export function isMoveNode(node: TimelineNode): node is MoveNode {
   return node.type === 'move'
+}
+
+export function isAreaNode(node: TimelineNode): node is AreaNode {
+  return node.type === 'area'
 }

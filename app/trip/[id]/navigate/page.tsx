@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState, useCallback, useMemo, useRef, type TouchEvent } from 'react'
+import { use, useState, useEffect, useCallback, useMemo, useRef, type TouchEvent } from 'react'
 import dynamic from 'next/dynamic'
 import type { NavigateMapEntry } from '@/components/navigation/types'
 import { formatDistanceKm, hasVisibleMove } from '@/components/navigation/utils'
@@ -9,6 +9,8 @@ import { useTripContext } from '@/lib/trip-context'
 import { TRANSPORT_LABELS } from '@/lib/types'
 import type { MoveNode } from '@/lib/types'
 import { getTripTimelineNodes, isMoveNode, isSpotNode } from '@/lib/timeline-nodes'
+import { resolveTripIdFromSearch } from '@/lib/trip-id'
+import { buildTripPageHref } from '@/lib/trip-route'
 import { BottomNav } from '@/components/shared/bottom-nav'
 import { ArrowLeft, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
@@ -53,11 +55,16 @@ function MoveDirectionBadge({
 export default function NavigatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { getTrip } = useTripContext()
+  const [tripId, setTripId] = useState(id)
   const isMobile = useIsMobile()
   const [activeIndex, setActiveIndex] = useState(0)
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null)
 
-  const trip = getTrip(id)
+  useEffect(() => {
+    setTripId(resolveTripIdFromSearch(id, window.location.search))
+  }, [id])
+
+  const trip = getTrip(tripId)
 
   const spotEntries = useMemo(() => {
     if (!trip) return [] as NavigateMapEntry[]
@@ -150,10 +157,10 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background pb-16">
         <p className="text-muted-foreground">スポットがまだありません</p>
-        <Link href={`/trip/${id}/edit`} className="mt-2 text-sm text-primary hover:underline">
+        <Link href={buildTripPageHref(tripId, 'edit')} className="mt-2 text-sm text-primary hover:underline">
           旅程を編集する
         </Link>
-        <BottomNav tripId={id} active="navigate" />
+        <BottomNav tripId={tripId} active="navigate" />
       </div>
     )
   }
@@ -169,7 +176,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
       {/* Back Header */}
       <header className="absolute top-0 left-0 z-[1000] p-3">
         <Link
-          href={`/trip/${id}/edit`}
+          href={buildTripPageHref(tripId, 'edit')}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-foreground shadow-md backdrop-blur-sm transition-colors hover:bg-card"
           aria-label="旅程に戻る"
         >
@@ -288,7 +295,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
         </div>
       </div>
 
-      <BottomNav tripId={id} active="navigate" />
+      <BottomNav tripId={tripId} active="navigate" />
     </div>
   )
 }

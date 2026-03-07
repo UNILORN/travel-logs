@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import { useTripContext } from '@/lib/trip-context'
 import { CATEGORY_LABELS } from '@/lib/types'
 import type { ExpenseCategory } from '@/lib/types'
@@ -11,14 +11,21 @@ import { ExpenseForm } from '@/components/budget/expense-form'
 import { ArrowLeft, Users, Plus } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import Link from 'next/link'
+import { resolveTripIdFromSearch } from '@/lib/trip-id'
+import { buildTripPageHref } from '@/lib/trip-route'
 
 export default function BudgetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { getTrip } = useTripContext()
+  const [tripId, setTripId] = useState(id)
   const [showForm, setShowForm] = useState(false)
   const [activeTab, setActiveTab] = useState<ExpenseCategory | 'all'>('all')
 
-  const trip = getTrip(id)
+  useEffect(() => {
+    setTripId(resolveTripIdFromSearch(id, window.location.search))
+  }, [id])
+
+  const trip = getTrip(tripId)
   if (!trip) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -46,7 +53,7 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
         <div className="mx-auto max-w-md px-4 py-3">
           <div className="flex items-center gap-3">
             <Link
-              href={`/trip/${id}/edit`}
+              href={buildTripPageHref(tripId, 'edit')}
               className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
               aria-label="旅程に戻る"
             >
@@ -98,7 +105,7 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
           <TabsContent value={activeTab} className="mt-3">
             <ExpenseList
               expenses={filteredExpenses}
-              tripId={id}
+              tripId={tripId}
             />
           </TabsContent>
         </Tabs>
@@ -136,12 +143,12 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
       </button>
 
       <ExpenseForm
-        tripId={id}
+        tripId={tripId}
         open={showForm}
         onOpenChange={setShowForm}
       />
 
-      <BottomNav tripId={id} active="budget" />
+      <BottomNav tripId={tripId} active="budget" />
     </div>
   )
 }

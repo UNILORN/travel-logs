@@ -4,6 +4,10 @@ import { parseTripsFromJson } from '@/lib/trip-json'
 import type { Trip } from '@/lib/types'
 
 function loadCustomTrips(): Trip[] {
+  if (!Array.isArray(customTripsJson) || customTripsJson.length === 0) {
+    return []
+  }
+
   try {
     return parseTripsFromJson(JSON.stringify(customTripsJson))
   } catch (error) {

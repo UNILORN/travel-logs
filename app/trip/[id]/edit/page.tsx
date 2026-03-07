@@ -1,7 +1,6 @@
 'use client'
 
-import { use, useState } from 'react'
-import { useTripContext } from '@/lib/trip-context'
+import { use, useEffect, useState } from 'react'
 import type { MoveNode, Spot } from '@/lib/types'
 import { ItineraryHeader } from '@/components/itinerary/itinerary-header'
 import type { TimelineInsertDraft } from '@/components/itinerary/timeline'
@@ -9,17 +8,24 @@ import { Timeline } from '@/components/itinerary/timeline'
 import { AddSpotDialog } from '@/components/itinerary/add-spot-dialog'
 import { BottomNav } from '@/components/shared/bottom-nav'
 import { Plus } from 'lucide-react'
+import { useTripContext } from '@/lib/trip-context'
+import { resolveTripIdFromSearch } from '@/lib/trip-id'
 
 export default function EditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { getTrip } = useTripContext()
+  const [tripId, setTripId] = useState(id)
   const [addSpotOpen, setAddSpotOpen] = useState(false)
   const [draft, setDraft] = useState<TimelineInsertDraft>({ day: 1, type: 'spot' })
   const [timelineMode, setTimelineMode] = useState<'view' | 'edit'>('view')
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null)
   const [editingMove, setEditingMove] = useState<MoveNode | null>(null)
 
-  const trip = getTrip(id)
+  useEffect(() => {
+    setTripId(resolveTripIdFromSearch(id, window.location.search))
+  }, [id])
+
+  const trip = getTrip(tripId)
   if (!trip) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -119,7 +125,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
       )}
 
       <AddSpotDialog
-        tripId={trip.id}
+        tripId={tripId}
         open={isEditMode && addSpotOpen}
         onOpenChange={(open) => {
           setAddSpotOpen(open)
@@ -136,7 +142,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
         editingMove={editingMove}
       />
 
-      <BottomNav tripId={id} active="edit" />
+      <BottomNav tripId={tripId} active="edit" />
     </div>
   )
 }

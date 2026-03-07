@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTripContext } from '@/lib/trip-context'
+import { buildTripPageHref } from '@/lib/trip-route'
 import {
   Dialog,
   DialogContent,
@@ -58,7 +59,7 @@ export function NewTripDialog({
     setAdults(2)
     setChildren(0)
     setBudget(50000)
-    router.push(`/trip/${id}/edit`)
+    router.push(buildTripPageHref(id, 'edit'))
   }
 
   return (

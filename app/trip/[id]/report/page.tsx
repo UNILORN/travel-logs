@@ -1,11 +1,13 @@
 'use client'
 
-import { use, useMemo } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTripContext } from '@/lib/trip-context'
 import { TRANSPORT_LABELS, CATEGORY_LABELS } from '@/lib/types'
 import type { ExpenseCategory } from '@/lib/types'
 import { getTripTimelineNodes, isMoveNode, isSpotNode } from '@/lib/timeline-nodes'
+import { resolveTripIdFromSearch } from '@/lib/trip-id'
+import { buildTripPageHref } from '@/lib/trip-route'
 import { BottomNav } from '@/components/shared/bottom-nav'
 import { StatCard } from '@/components/report/stat-card'
 import { TransportChart } from '@/components/report/transport-chart'
@@ -18,8 +20,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   const { id } = use(params)
   const { getTrip, archiveTrip } = useTripContext()
   const router = useRouter()
+  const [tripId, setTripId] = useState(id)
 
-  const trip = getTrip(id)
+  useEffect(() => {
+    setTripId(resolveTripIdFromSearch(id, window.location.search))
+  }, [id])
+
+  const trip = getTrip(tripId)
 
   const stats = useMemo(() => {
     if (!trip) return null
@@ -90,7 +97,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   }
 
   const handleArchive = () => {
-    archiveTrip(id)
+    archiveTrip(tripId)
     router.push('/')
   }
 
@@ -100,7 +107,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         <div className="mx-auto max-w-md px-4 py-3">
           <div className="flex items-center gap-3">
             <Link
-              href={`/trip/${id}/edit`}
+              href={buildTripPageHref(tripId, 'edit')}
               className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
               aria-label="旅程に戻る"
             >
@@ -189,7 +196,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         )}
       </main>
 
-      <BottomNav tripId={id} active="report" />
+      <BottomNav tripId={tripId} active="report" />
     </div>
   )
 }

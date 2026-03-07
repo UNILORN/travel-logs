@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { NewTripDialog } from '@/components/bookshelf/new-trip-dialog'
 import { Button } from '@/components/ui/button'
 import { parseTripsFromJson, stringifyTrips } from '@/lib/trip-json'
+import { buildTripPageHref } from '@/lib/trip-route'
 
 function TripCover({ trip, onDelete }: { trip: Trip; onDelete: (trip: Trip) => void }) {
   const coverImageSrc = trip.coverImage.trim()
@@ -22,7 +23,7 @@ function TripCover({ trip, onDelete }: { trip: Trip; onDelete: (trip: Trip) => v
 
   return (
     <div className="relative">
-      <Link href={`/trip/${trip.id}/edit`} className="group block">
+      <Link href={buildTripPageHref(trip.id, 'edit')} className="group block">
         <div className="relative aspect-[3/4] overflow-hidden rounded-lg shadow-md transition-transform duration-200 group-hover:scale-[1.02] group-hover:shadow-lg">
           {coverImageSrc ? (
             <img

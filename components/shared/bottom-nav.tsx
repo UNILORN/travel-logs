@@ -3,13 +3,14 @@
 import Link from 'next/link'
 import { BookOpen, Map, Wallet, Navigation, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { buildTripPageHref, type TripPageSection } from '@/lib/trip-route'
 
 const navItems = [
-  { href: '/', icon: BookOpen, label: '本棚', key: 'home' },
-  { href: '/edit', icon: Map, label: '旅程', key: 'edit' },
-  { href: '/budget', icon: Wallet, label: '予算', key: 'budget' },
-  { href: '/navigate', icon: Navigation, label: 'ナビ', key: 'navigate' },
-  { href: '/report', icon: BarChart3, label: 'レポート', key: 'report' },
+  { icon: BookOpen, label: '本棚', key: 'home' },
+  { icon: Map, label: '旅程', key: 'edit' },
+  { icon: Wallet, label: '予算', key: 'budget' },
+  { icon: Navigation, label: 'ナビ', key: 'navigate' },
+  { icon: BarChart3, label: 'レポート', key: 'report' },
 ]
 
 export function BottomNav({
@@ -23,8 +24,7 @@ export function BottomNav({
     <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-card/95 pb-safe backdrop-blur-sm" aria-label="メインナビゲーション">
       <div className="mx-auto flex max-w-md items-center justify-around py-1">
         {navItems.map((item) => {
-          const href =
-            item.key === 'home' ? '/' : `/trip/${tripId}/${item.key}`
+          const href = item.key === 'home' ? '/' : buildTripPageHref(tripId, item.key as TripPageSection)
           const isActive = active === item.key
           const Icon = item.icon
           return (

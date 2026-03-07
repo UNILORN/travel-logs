@@ -1,37 +1,64 @@
 'use client'
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import ReactECharts from 'echarts-for-react'
 
 export function DailyDistanceChart({ data }: { data: { day: string; distance: number }[] }) {
+  const option = {
+    animationDuration: 500,
+    grid: {
+      top: 16,
+      right: 12,
+      left: 10,
+      bottom: 26,
+      containLabel: true,
+    },
+    tooltip: {
+      trigger: 'axis' as const,
+      axisPointer: {
+        type: 'shadow' as const,
+      },
+      valueFormatter: (value: number) => `${value}km`,
+    },
+    xAxis: {
+      type: 'category' as const,
+      data: data.map((item) => item.day),
+      axisLabel: {
+        fontSize: 11,
+        color: 'oklch(0.42 0.02 60)',
+      },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value' as const,
+      name: 'km',
+      nameTextStyle: {
+        fontSize: 11,
+        color: 'oklch(0.42 0.02 60)',
+      },
+      splitLine: {
+        lineStyle: { color: 'oklch(0.89 0.015 75)' },
+      },
+      axisLabel: {
+        fontSize: 11,
+        color: 'oklch(0.42 0.02 60)',
+      },
+    },
+    series: [
+      {
+        data: data.map((item) => item.distance),
+        type: 'bar' as const,
+        barWidth: '48%',
+        itemStyle: {
+          color: 'oklch(0.45 0.1 175)',
+          borderRadius: [6, 6, 0, 0],
+        },
+      },
+    ],
+  }
+
   return (
     <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={data} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.89 0.015 75)" />
-          <XAxis
-            dataKey="day"
-            tick={{ fontSize: 12, fill: 'oklch(0.5 0.02 50)' }}
-          />
-          <YAxis
-            tick={{ fontSize: 12, fill: 'oklch(0.5 0.02 50)' }}
-            unit="km"
-          />
-          <Tooltip
-            formatter={(value: number) => [`${value}km`, '移動距離']}
-            contentStyle={{
-              backgroundColor: 'oklch(0.99 0.003 80)',
-              borderColor: 'oklch(0.89 0.015 75)',
-              borderRadius: '0.5rem',
-              fontSize: '0.75rem',
-            }}
-          />
-          <Bar
-            dataKey="distance"
-            fill="oklch(0.45 0.1 175)"
-            radius={[4, 4, 0, 0]}
-          />
-        </BarChart>
-      </ResponsiveContainer>
+      <ReactECharts option={option} style={{ height: 220, width: '100%' }} />
     </div>
   )
 }

@@ -10,22 +10,37 @@ import { ExpenseList } from '@/components/budget/expense-list'
 import { ExpenseForm } from '@/components/budget/expense-form'
 import { ArrowLeft, Users, Plus } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { resolveTripIdFromSearch } from '@/lib/trip-id'
 import { buildTripPageHref } from '@/lib/trip-route'
 
 export default function BudgetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const { getTrip } = useTripContext()
+  const { getTrip, updateBudgetAndMembers } = useTripContext()
   const [tripId, setTripId] = useState(id)
   const [showForm, setShowForm] = useState(false)
   const [activeTab, setActiveTab] = useState<ExpenseCategory | 'all'>('all')
+  const [isSettingsEditing, setIsSettingsEditing] = useState(false)
+  const [budgetInput, setBudgetInput] = useState(0)
+  const [adultInput, setAdultInput] = useState(1)
+  const [childInput, setChildInput] = useState(0)
 
   useEffect(() => {
     setTripId(resolveTripIdFromSearch(id, window.location.search))
   }, [id])
 
   const trip = getTrip(tripId)
+
+  useEffect(() => {
+    if (!trip) return
+    setBudgetInput(trip.budget)
+    setAdultInput(trip.members.adults)
+    setChildInput(trip.members.children)
+  }, [trip?.budget, trip?.members.adults, trip?.members.children])
+
   if (!trip) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -45,6 +60,34 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
     activeTab === 'all'
       ? trip.expenses
       : trip.expenses.filter((e) => e.category === activeTab)
+
+  const hasSettingsChanges =
+    budgetInput !== trip.budget ||
+    adultInput !== trip.members.adults ||
+    childInput !== trip.members.children
+
+  const handleSaveSettings = () => {
+    updateBudgetAndMembers(tripId, {
+      budget: Math.max(0, budgetInput),
+      adults: Math.max(1, adultInput),
+      children: Math.max(0, childInput),
+    })
+    setIsSettingsEditing(false)
+  }
+
+  const handleStartEditingSettings = () => {
+    setBudgetInput(trip.budget)
+    setAdultInput(trip.members.adults)
+    setChildInput(trip.members.children)
+    setIsSettingsEditing(true)
+  }
+
+  const handleCancelEditingSettings = () => {
+    setBudgetInput(trip.budget)
+    setAdultInput(trip.members.adults)
+    setChildInput(trip.members.children)
+    setIsSettingsEditing(false)
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -68,6 +111,81 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
       </header>
 
       <main className="mx-auto max-w-md px-4 pt-4">
+        <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="font-serif text-sm font-bold text-foreground">予算と人数</h2>
+            {!isSettingsEditing ? (
+              <Button variant="outline" size="sm" onClick={handleStartEditingSettings}>
+                編集
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleCancelEditingSettings}>
+                  キャンセル
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveSettings}
+                  disabled={!hasSettingsChanges}
+                >
+                  保存
+                </Button>
+              </div>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            料金は1人分として扱われ、保存時に全支出を現在の人数で再計算します。
+          </p>
+
+          {!isSettingsEditing ? (
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div className="rounded-md bg-muted/50 px-3 py-2">
+                <p className="text-xs text-muted-foreground">予算</p>
+                <p className="font-semibold text-foreground">{trip.budget.toLocaleString()}円</p>
+              </div>
+              <div className="rounded-md bg-muted/50 px-3 py-2">
+                <p className="text-xs text-muted-foreground">人数</p>
+                <p className="font-semibold text-foreground">
+                  大人{trip.members.adults}名 / 子供{trip.members.children}名
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label htmlFor="trip-budget">予算（円）</Label>
+                <Input
+                  id="trip-budget"
+                  type="number"
+                  min={0}
+                  value={budgetInput}
+                  onChange={(e) => setBudgetInput(Math.max(0, parseInt(e.target.value) || 0))}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="trip-adults">大人人数</Label>
+                <Input
+                  id="trip-adults"
+                  type="number"
+                  min={1}
+                  value={adultInput}
+                  onChange={(e) => setAdultInput(Math.max(1, parseInt(e.target.value) || 1))}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="trip-children">子供人数</Label>
+                <Input
+                  id="trip-children"
+                  type="number"
+                  min={0}
+                  value={childInput}
+                  onChange={(e) => setChildInput(Math.max(0, parseInt(e.target.value) || 0))}
+                />
+              </div>
+            </div>
+          )}
+        </section>
+
         {/* Budget Gauge */}
         <BudgetGauge
           spent={totalSpent}

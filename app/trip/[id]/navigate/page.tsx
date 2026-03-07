@@ -24,6 +24,34 @@ const MapView = dynamic(
 const SWIPE_THRESHOLD_PX = 48
 const SWIPE_DIRECTION_RATIO = 1.2
 
+function formatCurrentTime(date: Date) {
+  return new Intl.DateTimeFormat('ja-JP', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+function formatCurrentDate(date: Date) {
+  return new Intl.DateTimeFormat('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  }).format(date)
+}
+
+function createTripDateTime(baseDate: string, day: number, time: string) {
+  const [year, month, date] = baseDate.split('-').map((v) => parseInt(v, 10))
+  const [hour, minute] = time.split(':').map((v) => parseInt(v, 10))
+  return new Date(year, month - 1, date + (day - 1), hour, minute, 0, 0)
+}
+
+function formatNodeTimeLabel(time: string, endTime: string) {
+  return `${time} - ${endTime}`
+}
+
 function MoveDirectionBadge({
   move,
   directionLabel,
@@ -58,11 +86,22 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
   const [tripId, setTripId] = useState(id)
   const isMobile = useIsMobile()
   const [activeIndex, setActiveIndex] = useState(0)
+  const [currentDateTime, setCurrentDateTime] = useState(() => new Date())
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     setTripId(resolveTripIdFromSearch(id, window.location.search))
   }, [id])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCurrentDateTime(new Date())
+    }, 1000)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [])
 
   const trip = getTrip(tripId)
 
@@ -93,6 +132,37 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
   }, [trip])
 
   const allSpots = useMemo(() => spotEntries.map((entry) => entry.spot), [spotEntries])
+  const timelineNodes = useMemo(() => (trip ? getTripTimelineNodes(trip) : []), [trip])
+
+  const nowBasedInfo = useMemo(() => {
+    if (!trip || timelineNodes.length === 0) {
+      return { nextSpot: null, activeMove: null as MoveNode | null }
+    }
+
+    const nowTs = currentDateTime.getTime()
+
+    const nextSpot =
+      timelineNodes
+        .filter(isSpotNode)
+        .map((spot) => {
+          const startAt = createTripDateTime(trip.startDate, spot.day, spot.time)
+          return { spot, startAt }
+        })
+        .find((entry) => entry.startAt.getTime() >= nowTs)?.spot ??
+      timelineNodes.filter(isSpotNode).at(-1) ??
+      null
+
+    const activeMove =
+      timelineNodes
+        .filter(isMoveNode)
+        .find((move) => {
+          const startAt = createTripDateTime(trip.startDate, move.day, move.time).getTime()
+          const endAt = createTripDateTime(trip.startDate, move.day, move.endTime).getTime()
+          return nowTs >= startAt && nowTs <= endAt
+        }) ?? null
+
+    return { nextSpot, activeMove }
+  }, [currentDateTime, timelineNodes, trip])
 
   const handleMarkerClick = useCallback(
     (spotId: string) => {
@@ -193,6 +263,45 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
           onPrevClick={goPrev}
           onNextClick={goNext}
         />
+        <div className="pointer-events-none absolute top-3 left-1/2 z-[1000] -translate-x-1/2">
+          <div className="w-[min(92vw,34rem)] rounded-2xl border border-white/50 bg-gradient-to-r from-card/95 via-card/90 to-card/95 px-3 py-2 shadow-lg backdrop-blur-md">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold tracking-[0.18em] text-muted-foreground">現在日時</p>
+                <p className="text-[11px] text-muted-foreground">{formatCurrentDate(currentDateTime)}</p>
+                <p className="font-mono text-lg font-bold leading-none text-foreground">
+                  {formatCurrentTime(currentDateTime)}
+                </p>
+              </div>
+              <div className="max-w-[58%] min-w-0 space-y-1.5 text-right">
+                <div className="rounded-lg bg-muted/65 px-2 py-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground">次のSpot</p>
+                  <p className="truncate text-xs font-semibold text-foreground">
+                    {nowBasedInfo.nextSpot ? nowBasedInfo.nextSpot.name : '未設定'}
+                  </p>
+                  {nowBasedInfo.nextSpot && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Day {nowBasedInfo.nextSpot.day} {formatNodeTimeLabel(nowBasedInfo.nextSpot.time, nowBasedInfo.nextSpot.endTime)}
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-lg bg-muted/65 px-2 py-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground">移動</p>
+                  {nowBasedInfo.activeMove ? (
+                    <>
+                      <p className="truncate text-xs font-semibold text-foreground">移動中: {nowBasedInfo.activeMove.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Day {nowBasedInfo.activeMove.day} {formatNodeTimeLabel(nowBasedInfo.activeMove.time, nowBasedInfo.activeMove.endTime)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs font-semibold text-foreground">移動中ではありません</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Spot Card */}
@@ -228,19 +337,27 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
 
           {/* Spot dots */}
           <div className="mb-3 flex items-center justify-center gap-1.5">
-            {allSpots.map((spot, idx) => (
-              <button
-                key={spot.id}
-                onClick={() => setActiveIndex(idx)}
-                className={cn(
-                  'h-1.5 rounded-full transition-all',
-                  idx === safeActiveIndex
-                    ? 'w-4 bg-primary'
-                    : 'w-1.5 bg-border hover:bg-muted-foreground'
-                )}
-                aria-label={`${spot.name}を表示`}
-              />
-            ))}
+            {allSpots.map((spot, idx) => {
+              const isActive = idx === safeActiveIndex
+              const isDayBoundary = idx > 0 && allSpots[idx - 1].day !== spot.day
+
+              return (
+                <button
+                  key={spot.id}
+                  onClick={() => setActiveIndex(idx)}
+                  className={cn(
+                    'h-1.5 rounded-full transition-all',
+                    isActive
+                      ? 'w-4 bg-primary'
+                      : spot.day % 2 === 0
+                        ? 'w-1.5 bg-chart-3/55 hover:bg-chart-3'
+                        : 'w-1.5 bg-chart-1/50 hover:bg-chart-1',
+                    isDayBoundary && !isActive && 'ml-2'
+                  )}
+                  aria-label={`Day ${spot.day} ${spot.name}を表示`}
+                />
+              )
+            })}
           </div>
 
           {/* Active spot details */}

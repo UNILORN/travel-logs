@@ -22,6 +22,10 @@ interface TripContextValue {
   getTrip: (id: string) => Trip | undefined
   addTrip: (trip: Omit<Trip, 'id' | 'spots' | 'expenses'>) => string
   updateTrip: (id: string, updates: Partial<Trip>) => void
+  updateBudgetAndMembers: (
+    tripId: string,
+    updates: { budget: number; adults: number; children: number }
+  ) => void
   deleteTrip: (id: string) => void
   addSpot: (tripId: string, spot: Omit<Spot, 'id'>) => void
   updateSpot: (tripId: string, spotId: string, updates: Partial<Spot>) => void
@@ -167,6 +171,37 @@ export function TripProvider({ children }: { children: ReactNode }) {
   const updateTrip = useCallback((id: string, updates: Partial<Trip>) => {
     setTrips((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)))
   }, [])
+
+  const updateBudgetAndMembers = useCallback(
+    (tripId: string, updates: { budget: number; adults: number; children: number }) => {
+      setTrips((prev) =>
+        prev.map((trip) => {
+          if (trip.id !== tripId) return trip
+
+          const adults = Math.max(1, Math.floor(updates.adults))
+          const children = Math.max(0, Math.floor(updates.children))
+          const budget = Math.max(0, Math.floor(updates.budget))
+          const nextExpenses = trip.expenses.map((expense) => {
+            const total = expense.adultPrice * adults + expense.childPrice * children
+            return {
+              ...expense,
+              adultCount: adults,
+              childCount: children,
+              total,
+            }
+          })
+
+          return {
+            ...trip,
+            budget,
+            members: { adults, children },
+            expenses: nextExpenses,
+          }
+        })
+      )
+    },
+    []
+  )
 
   const deleteTrip = useCallback((id: string) => {
     setTrips((prev) => prev.filter((t) => t.id !== id))
@@ -427,6 +462,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
         getTrip,
         addTrip,
         updateTrip,
+        updateBudgetAndMembers,
         deleteTrip,
         addSpot,
         updateSpot,

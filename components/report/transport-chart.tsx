@@ -1,6 +1,6 @@
 'use client'
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
+import ReactECharts from 'echarts-for-react'
 
 const COLORS = [
   'oklch(0.45 0.1 175)',
@@ -11,39 +11,62 @@ const COLORS = [
 ]
 
 export function TransportChart({ data }: { data: { name: string; value: number }[] }) {
+  const chartData = data.map((item, index) => ({
+    ...item,
+    itemStyle: { color: COLORS[index % COLORS.length] },
+  }))
+
+  const option = {
+    animationDuration: 500,
+    tooltip: {
+      trigger: 'item',
+      valueFormatter: (value: number) => `${value}km`,
+    },
+    legend: {
+      type: 'scroll' as const,
+      bottom: 0,
+      left: 'center',
+      itemWidth: 12,
+      textStyle: { fontSize: 11, color: 'oklch(0.42 0.02 60)' },
+    },
+    series: [
+      {
+        name: '移動距離',
+        type: 'pie' as const,
+        radius: ['48%', '72%'],
+        center: ['50%', '44%'],
+        minAngle: 8,
+        avoidLabelOverlap: true,
+        itemStyle: {
+          borderRadius: 6,
+          borderColor: 'oklch(0.99 0.003 80)',
+          borderWidth: 2,
+        },
+        label: {
+          show: true,
+          fontSize: 11,
+          formatter: '{b|{b}}\n{v|{c}km}',
+          rich: {
+            b: { fontSize: 11, color: 'oklch(0.28 0.03 60)', fontWeight: 600 },
+            v: { fontSize: 10, color: 'oklch(0.42 0.02 60)' },
+          },
+        },
+        labelLine: {
+          length: 10,
+          length2: 8,
+        },
+        labelLayout: {
+          hideOverlap: true,
+          moveOverlap: 'shiftY' as const,
+        },
+        data: chartData,
+      },
+    ],
+  }
+
   return (
     <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <ResponsiveContainer width="100%" height={220}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={50}
-            outerRadius={80}
-            paddingAngle={3}
-            dataKey="value"
-            nameKey="name"
-            label={({ name, value }) => `${name} ${value}km`}
-          >
-            {data.map((_, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip
-            formatter={(value: number) => [`${value}km`, '距離']}
-            contentStyle={{
-              backgroundColor: 'oklch(0.99 0.003 80)',
-              borderColor: 'oklch(0.89 0.015 75)',
-              borderRadius: '0.5rem',
-              fontSize: '0.75rem',
-            }}
-          />
-          <Legend
-            wrapperStyle={{ fontSize: '0.75rem' }}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+      <ReactECharts option={option} style={{ height: 260, width: '100%' }} />
     </div>
   )
 }

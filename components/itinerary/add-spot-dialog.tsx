@@ -4,6 +4,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTripContext } from '@/lib/trip-context'
 import { TRANSPORT_LABELS, type MoveNode, type Spot, type TransportType } from '@/lib/types'
 import {
+  buildMovePathPoints,
+  extractEditableMiddlePoints,
+  findMoveAnchorSpots,
+  findMoveAnchorSpotsByWindow,
+  type LatLngPoint,
+} from '@/lib/move-path'
+import { getTripTimelineNodes } from '@/lib/timeline-nodes'
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -21,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { MovePathEditor } from './move-path-editor'
 import type { AddNodeKind } from './timeline'
 
 type SpotTransport = TransportType
@@ -52,6 +61,12 @@ function getDefaultMoveName(transport: SpotTransport) {
   return `${TRANSPORT_LABELS[transport]}で移動`
 }
 
+function toPoint(lat?: number, lng?: number): LatLngPoint | undefined {
+  if (typeof lat !== 'number' || typeof lng !== 'number') return undefined
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined
+  return { lat, lng }
+}
+
 export function AddSpotDialog({
   tripId,
   open,
@@ -73,7 +88,7 @@ export function AddSpotDialog({
   editingSpot?: Spot | null
   editingMove?: MoveNode | null
 }) {
-  const { addSpot, addNode, updateSpot, updateNode } = useTripContext()
+  const { addSpot, addNode, updateSpot, updateNode, getTrip } = useTripContext()
   const [nodeType, setNodeType] = useState<AddNodeKind>(defaultNodeType)
   const [name, setName] = useState('')
   const [time, setTime] = useState(defaultTime ?? '10:00')
@@ -94,10 +109,16 @@ export function AddSpotDialog({
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [searchSessionToken, setSearchSessionToken] = useState('')
   const [isResolvingSpotDetails, setIsResolvingSpotDetails] = useState(false)
+  const [movePathMiddlePoints, setMovePathMiddlePoints] = useState<LatLngPoint[]>([])
   const isEditingSpot = Boolean(editingSpot)
   const isEditingMove = Boolean(editingMove)
   const isEditingNode = isEditingSpot || isEditingMove
+  const dialogContentClassName = isEditingMove
+    ? 'h-[92vh] w-[98vw] max-w-[98vw] overflow-y-auto sm:max-w-[1400px]'
+    : 'max-h-[90vh] w-[94vw] max-w-[94vw] overflow-y-auto sm:max-w-4xl'
   const isSpotSearchEnabled = process.env.NEXT_PUBLIC_ENABLE_SPOT_SEARCH !== '0'
+  const trip = getTrip(tripId)
+  const timelineNodes = useMemo(() => (trip ? getTripTimelineNodes(trip) : []), [trip])
 
   const canSearchSpot = isSpotSearchEnabled && open && nodeType === 'spot' && name.trim().length >= 2
   const searchQuery = useMemo(() => name.trim(), [name])
@@ -142,6 +163,19 @@ export function AddSpotDialog({
       setLat(null)
       setLng(null)
       setImage(editingMove.image)
+      const moveAnchors = findMoveAnchorSpots(timelineNodes, editingMove.id)
+      const fullPath = buildMovePathPoints(editingMove, {
+        from: moveAnchors.fromSpot ? { lat: moveAnchors.fromSpot.lat, lng: moveAnchors.fromSpot.lng } : undefined,
+        to: moveAnchors.toSpot ? { lat: moveAnchors.toSpot.lat, lng: moveAnchors.toSpot.lng } : undefined,
+      })
+      setMovePathMiddlePoints(
+        extractEditableMiddlePoints(fullPath, {
+          from: moveAnchors.fromSpot
+            ? { lat: moveAnchors.fromSpot.lat, lng: moveAnchors.fromSpot.lng }
+            : undefined,
+          to: moveAnchors.toSpot ? { lat: moveAnchors.toSpot.lat, lng: moveAnchors.toSpot.lng } : undefined,
+        })
+      )
       return
     }
 
@@ -158,7 +192,8 @@ export function AddSpotDialog({
     setLat(null)
     setLng(null)
     setImage('')
-  }, [open, defaultDay, defaultTime, defaultEndTime, defaultNodeType, editingSpot, editingMove])
+    setMovePathMiddlePoints([])
+  }, [open, defaultDay, defaultTime, defaultEndTime, defaultNodeType, editingSpot, editingMove, timelineNodes])
 
   const resetForm = () => {
     setName('')
@@ -174,7 +209,28 @@ export function AddSpotDialog({
     setSearchError(null)
     setSearchProvider(null)
     setShowSearchDropdown(false)
+    setMovePathMiddlePoints([])
   }
+
+  const moveAnchors = useMemo(() => {
+    if (nodeType !== 'move') {
+      return { from: undefined, to: undefined }
+    }
+
+    if (editingMove) {
+      const { fromSpot, toSpot } = findMoveAnchorSpots(timelineNodes, editingMove.id)
+      return {
+        from: fromSpot ? { lat: fromSpot.lat, lng: fromSpot.lng } : toPoint(editingMove.fromLat, editingMove.fromLng),
+        to: toSpot ? { lat: toSpot.lat, lng: toSpot.lng } : toPoint(editingMove.toLat, editingMove.toLng),
+      }
+    }
+
+    const { fromSpot, toSpot } = findMoveAnchorSpotsByWindow(timelineNodes, { day, time, endTime })
+    return {
+      from: fromSpot ? { lat: fromSpot.lat, lng: fromSpot.lng } : undefined,
+      to: toSpot ? { lat: toSpot.lat, lng: toSpot.lng } : undefined,
+    }
+  }, [day, editingMove, endTime, nodeType, time, timelineNodes])
 
   useEffect(() => {
     if (!canSearchSpot) {
@@ -279,6 +335,8 @@ export function AddSpotDialog({
       nodeType === 'move' ? trimmedName || getDefaultMoveName(transport) : trimmedName
     if (!resolvedName || !time || !endTime) return
 
+    const movePath = movePathMiddlePoints
+
     if (nodeType === 'spot') {
       const nextSpot = {
         name: resolvedName,
@@ -310,6 +368,11 @@ export function AddSpotDialog({
           distance,
           image: resolvedImage,
           notes,
+          fromLat: moveAnchors.from?.lat,
+          fromLng: moveAnchors.from?.lng,
+          toLat: moveAnchors.to?.lat,
+          toLng: moveAnchors.to?.lng,
+          path: movePath,
         })
       } else {
         addNode(tripId, {
@@ -322,6 +385,11 @@ export function AddSpotDialog({
           distance,
           image: resolvedImage,
           notes,
+          fromLat: moveAnchors.from?.lat,
+          fromLng: moveAnchors.from?.lng,
+          toLat: moveAnchors.to?.lat,
+          toLng: moveAnchors.to?.lng,
+          path: movePath,
         })
       }
     } else {
@@ -347,7 +415,7 @@ export function AddSpotDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className={dialogContentClassName}>
         <DialogHeader>
           <DialogTitle className="font-serif">
             {isEditingSpot ? 'スポットを編集' : isEditingMove ? '移動を編集' : 'ノードを追加'}
@@ -532,6 +600,7 @@ export function AddSpotDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="train">電車</SelectItem>
+                    <SelectItem value="limited_express">在来線特急</SelectItem>
                     <SelectItem value="shinkansen">新幹線</SelectItem>
                     <SelectItem value="bus">バス</SelectItem>
                     <SelectItem value="car">車</SelectItem>
@@ -555,6 +624,20 @@ export function AddSpotDialog({
                   value={distance}
                   onChange={(e) => setDistance(parseFloat(e.target.value) || 0)}
                 />
+              </div>
+
+              <div className="col-span-2">
+                <MovePathEditor
+                  startPoint={moveAnchors.from}
+                  endPoint={moveAnchors.to}
+                  middlePoints={movePathMiddlePoints}
+                  onChange={setMovePathMiddlePoints}
+                />
+                {(!moveAnchors.from || !moveAnchors.to) && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    前後のスポットが不足しているため、始点/終点の一部が固定できません。
+                  </p>
+                )}
               </div>
             </div>
           ) : nodeType === 'area' ? (

@@ -42,6 +42,7 @@ const transportIcons: Partial<Record<TransportType, LucideIcon>> = {
   car: Car,
   walk: Footprints,
   train: Train,
+  limited_express: Train,
   shinkansen: Train,
   bus: Bus,
   ferry: Ship,

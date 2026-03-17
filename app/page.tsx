@@ -11,6 +11,16 @@ import { NewTripDialog } from '@/components/bookshelf/new-trip-dialog'
 import { Button } from '@/components/ui/button'
 import { parseTripsFromJson, stringifyTrips } from '@/lib/trip-json'
 import { buildTripPageHref } from '@/lib/trip-route'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 function TripCover({ trip, onDelete }: { trip: Trip; onDelete: (trip: Trip) => void }) {
   const coverImageSrc = trip.coverImage.trim()
@@ -77,6 +87,7 @@ export default function BookshelfPage() {
   const { trips, appendTrips, deleteTrip } = useTripContext()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleteTargetTrip, setDeleteTargetTrip] = useState<Trip | null>(null)
   const isPagesPrPreview = process.env.NEXT_PUBLIC_GITHUB_PAGES_PR_PREVIEW === '1'
 
   const planningTrips = trips.filter((t) => t.status !== 'archived')
@@ -84,11 +95,7 @@ export default function BookshelfPage() {
   const activeTripCount = trips.filter((t) => t.status === 'traveling').length
 
   const handleDeleteTrip = (trip: Trip) => {
-    const ok = window.confirm(
-      `「${trip.title}」を本棚から削除しますか？\n関連データ（旅程・予算）も削除されます。`
-    )
-    if (!ok) return
-    deleteTrip(trip.id)
+    setDeleteTargetTrip(trip)
   }
 
   return (
@@ -260,6 +267,38 @@ export default function BookshelfPage() {
       </button>
 
       {!isPagesPrPreview && <NewTripDialog open={dialogOpen} onOpenChange={setDialogOpen} />}
+      <AlertDialog
+        open={deleteTargetTrip !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTargetTrip(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>この旅を削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTargetTrip
+                ? `「${deleteTargetTrip.title}」を本棚から削除します。関連データ（旅程・予算）も削除されます。`
+                : '関連データ（旅程・予算）も削除されます。'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (!deleteTargetTrip) return
+                deleteTrip(deleteTargetTrip.id)
+                setDeleteTargetTrip(null)
+              }}
+            >
+              削除する
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

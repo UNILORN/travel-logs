@@ -4,6 +4,7 @@ export type TripStatus = (typeof TRIP_STATUSES)[number]
 
 export const TRANSPORT_TYPES = [
   'train',
+  'limited_express',
   'shinkansen',
   'bus',
   'car',
@@ -76,6 +77,8 @@ export interface MoveNode {
   fromLng?: number
   toLat?: number
   toLng?: number
+  /** Route points in drawing order (including anchors when available). */
+  path?: { lat: number; lng: number }[]
 }
 
 /** A grouped area block (unordered visits inside a rough time box) */
@@ -132,6 +135,7 @@ export const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
 
 export const TRANSPORT_LABELS: Record<TransportType, string> = {
   train: '電車',
+  limited_express: '在来線特急',
   shinkansen: '新幹線',
   bus: 'バス',
   car: '車',

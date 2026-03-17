@@ -174,6 +174,26 @@ export const TRIP_JSON_SCHEMA = {
           minimum: -180,
           maximum: 180,
         },
+        path: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['lat', 'lng'],
+            properties: {
+              lat: {
+                type: 'number',
+                minimum: -90,
+                maximum: 90,
+              },
+              lng: {
+                type: 'number',
+                minimum: -180,
+                maximum: 180,
+              },
+            },
+          },
+        },
       },
     },
     areaNode: {

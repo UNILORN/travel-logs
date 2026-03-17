@@ -23,6 +23,12 @@ const dateSchema = z.string().regex(DATE_PATTERN)
 const timeSchema = z.string().regex(TIME_PATTERN)
 const latitudeSchema = z.number().finite().min(-90).max(90)
 const longitudeSchema = z.number().finite().min(-180).max(180)
+const latLngPointSchema = z
+  .object({
+    lat: latitudeSchema,
+    lng: longitudeSchema,
+  })
+  .strict()
 const nonNegativeNumberSchema = z.number().finite().min(0)
 const nonNegativeIntegerSchema = z.number().int().min(0)
 
@@ -62,6 +68,7 @@ const moveNodeInputSchema = z
     fromLng: longitudeSchema.optional(),
     toLat: latitudeSchema.optional(),
     toLng: longitudeSchema.optional(),
+    path: z.array(latLngPointSchema).optional(),
   })
   .strict()
 

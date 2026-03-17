@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AreaNode, MoveNode } from '@/lib/types'
 import { TRANSPORT_LABELS } from '@/lib/types'
-import type { NavigateMapEntry } from '@/components/navigation/types'
-import { formatDistanceKm, hasVisibleMove } from '@/components/navigation/utils'
+import type { NavigateMapEntry, NavigateRouteSegment } from '@/components/navigation/types'
+import { formatDistanceKm, getTransportRouteStyle, hasVisibleMove } from '@/components/navigation/utils'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -79,12 +79,14 @@ type RouteChip = (ReturnType<typeof buildRouteChip> | ReturnType<typeof buildAre
 
 export function MapView({
   entries,
+  routes,
   activeSpotId,
   onMarkerClick,
   onPrevClick,
   onNextClick,
 }: {
   entries: NavigateMapEntry[]
+  routes: NavigateRouteSegment[]
   activeSpotId: string | null
   onMarkerClick: (spotId: string) => void
   onPrevClick: () => void
@@ -94,7 +96,7 @@ export function MapView({
   const frameRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const markersRef = useRef<L.Marker[]>([])
-  const polylineRef = useRef<L.Polyline | null>(null)
+  const polylineRef = useRef<L.Polyline[]>([])
   const onMarkerClickRef = useRef(onMarkerClick)
   const [activeAnchorPoint, setActiveAnchorPoint] = useState<AnchorPoint | null>(null)
   onMarkerClickRef.current = onMarkerClick
@@ -184,10 +186,8 @@ export function MapView({
     // Clear existing markers
     markersRef.current.forEach((marker) => marker.remove())
     markersRef.current = []
-    if (polylineRef.current) {
-      polylineRef.current.remove()
-      polylineRef.current = null
-    }
+    polylineRef.current.forEach((polyline) => polyline.remove())
+    polylineRef.current = []
 
     // Add new markers
     entries.forEach((entry) => {
@@ -205,17 +205,17 @@ export function MapView({
       markersRef.current.push(marker)
     })
 
-    // Draw polyline between spots
-    if (entries.length > 1) {
-      const latlngs: L.LatLngExpression[] = entries.map((entry) => [entry.spot.lat, entry.spot.lng])
-      polylineRef.current = L.polyline(latlngs, {
-        color: 'oklch(0.45 0.1 175)',
-        weight: 3,
-        opacity: 0.6,
-        dashArray: '8, 8',
+    for (const route of routes) {
+      if (route.points.length < 2) continue
+      const style = getTransportRouteStyle(route.move.transport)
+      const latlngs: L.LatLngExpression[] = route.points.map((point) => [point.lat, point.lng])
+      const polyline = L.polyline(latlngs, {
+        ...style,
+        interactive: false,
       }).addTo(map)
+      polylineRef.current.push(polyline)
     }
-  }, [entries, activeSpotId])
+  }, [entries, routes, activeSpotId])
 
   // Pan to active spot
   useEffect(() => {

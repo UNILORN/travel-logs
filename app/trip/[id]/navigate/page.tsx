@@ -2,13 +2,14 @@
 
 import { use, useState, useEffect, useCallback, useMemo, useRef, type TouchEvent } from 'react'
 import dynamic from 'next/dynamic'
-import type { NavigateMapEntry } from '@/components/navigation/types'
+import type { NavigateMapEntry, NavigateRouteSegment } from '@/components/navigation/types'
 import { formatDistanceKm, hasVisibleMove } from '@/components/navigation/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useTripContext } from '@/lib/trip-context'
 import { TRANSPORT_LABELS } from '@/lib/types'
 import type { MoveNode } from '@/lib/types'
 import { getTripTimelineNodes, isAreaNode, isMoveNode, isSpotNode } from '@/lib/timeline-nodes'
+import { buildMovePathPoints } from '@/lib/move-path'
 import { resolveTripIdFromSearch } from '@/lib/trip-id'
 import { buildTripPageHref } from '@/lib/trip-route'
 import { BottomNav } from '@/components/shared/bottom-nav'
@@ -105,16 +106,17 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
 
   const trip = getTrip(tripId)
 
+  const timelineNodes = useMemo(() => (trip ? getTripTimelineNodes(trip) : []), [trip])
+
   const spotEntries = useMemo(() => {
     if (!trip) return [] as NavigateMapEntry[]
 
-    const nodes = getTripTimelineNodes(trip)
     const entries: NavigateMapEntry[] = []
 
-    nodes.forEach((node, index) => {
+    timelineNodes.forEach((node, index) => {
       if (!isSpotNode(node)) return
-      const prevNode = nodes[index - 1]
-      const nextNode = nodes[index + 1]
+      const prevNode = timelineNodes[index - 1]
+      const nextNode = timelineNodes[index + 1]
       const prevMove = prevNode && isMoveNode(prevNode) ? prevNode : undefined
       const nextMove = nextNode && isMoveNode(nextNode) ? nextNode : undefined
       const prevArea = prevNode && isAreaNode(prevNode) ? prevNode : undefined
@@ -131,10 +133,48 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
     })
 
     return entries
-  }, [trip])
+  }, [timelineNodes, trip])
+
+  const routeSegments = useMemo(() => {
+    const segments: NavigateRouteSegment[] = []
+
+    timelineNodes.forEach((node, index) => {
+      if (!isMoveNode(node)) return
+
+      const fromSpot = (() => {
+        for (let i = index - 1; i >= 0; i -= 1) {
+          const candidate = timelineNodes[i]
+          if (isSpotNode(candidate)) return candidate
+        }
+        return undefined
+      })()
+
+      const toSpot = (() => {
+        for (let i = index + 1; i < timelineNodes.length; i += 1) {
+          const candidate = timelineNodes[i]
+          if (isSpotNode(candidate)) return candidate
+        }
+        return undefined
+      })()
+
+      const points = buildMovePathPoints(node, {
+        from: fromSpot ? { lat: fromSpot.lat, lng: fromSpot.lng } : undefined,
+        to: toSpot ? { lat: toSpot.lat, lng: toSpot.lng } : undefined,
+      })
+
+      if (points.length < 2) return
+
+      segments.push({
+        id: node.id,
+        move: node,
+        points,
+      })
+    })
+
+    return segments
+  }, [timelineNodes])
 
   const allSpots = useMemo(() => spotEntries.map((entry) => entry.spot), [spotEntries])
-  const timelineNodes = useMemo(() => (trip ? getTripTimelineNodes(trip) : []), [trip])
 
   const nowBasedInfo = useMemo(() => {
     if (!trip || timelineNodes.length === 0) {
@@ -260,6 +300,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
       <div className="relative flex-1">
         <MapView
           entries={spotEntries}
+          routes={routeSegments}
           activeSpotId={activeSpot?.id ?? null}
           onMarkerClick={handleMarkerClick}
           onPrevClick={goPrev}

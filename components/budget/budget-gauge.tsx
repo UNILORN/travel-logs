@@ -12,15 +12,10 @@ export function BudgetGauge({
   percentage: number
 }) {
   const clampedPercent = Math.min(percentage, 100)
-  const status =
-    percentage < 60 ? 'safe' : percentage < 85 ? 'warning' : 'danger'
+  const status = percentage < 60 ? 'safe' : percentage < 85 ? 'warning' : 'danger'
 
   const barColor =
-    status === 'safe'
-      ? 'bg-chart-1'
-      : status === 'warning'
-        ? 'bg-chart-2'
-        : 'bg-destructive'
+    status === 'safe' ? 'bg-chart-1' : status === 'warning' ? 'bg-chart-2' : 'bg-destructive'
 
   const statusLabel =
     status === 'safe' ? '余裕あり' : status === 'warning' ? '注意' : '予算超過注意'
@@ -52,9 +47,7 @@ export function BudgetGauge({
         <span className="font-serif text-lg font-bold text-foreground">
           {spent.toLocaleString()}円
         </span>
-        <span className="text-sm text-muted-foreground">
-          / {budget.toLocaleString()}円
-        </span>
+        <span className="text-sm text-muted-foreground">/ {budget.toLocaleString()}円</span>
       </div>
 
       <p className="mt-1 text-right text-xs text-muted-foreground">

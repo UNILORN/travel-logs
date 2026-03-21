@@ -162,7 +162,10 @@ export function MovePathEditor({
         }
         if (modeRef.current !== 'add') return
 
-        const nextPoints = [...middlePointsRef.current, { lat: event.latlng.lat, lng: event.latlng.lng }]
+        const nextPoints = [
+          ...middlePointsRef.current,
+          { lat: event.latlng.lat, lng: event.latlng.lng },
+        ]
         middlePointsRef.current = nextPoints
         onChangeRef.current(nextPoints)
       }
@@ -195,7 +198,9 @@ export function MovePathEditor({
 
     if (fullPathItems.length > 0 && !hasFittedRef.current) {
       const bounds = L.latLngBounds(
-        fullPathItems.map((item) => [item.point.lat, item.point.lng] as import('leaflet').LatLngTuple)
+        fullPathItems.map(
+          (item) => [item.point.lat, item.point.lng] as import('leaflet').LatLngTuple
+        )
       )
       map.fitBounds(bounds.pad(0.25))
       hasFittedRef.current = true
@@ -347,14 +352,19 @@ export function MovePathEditor({
             type="button"
             onClick={() => setMode('remove')}
             className={`rounded px-2 py-1 text-xs font-medium ${
-              mode === 'remove' ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground hover:bg-muted'
+              mode === 'remove'
+                ? 'bg-destructive/10 text-destructive'
+                : 'text-muted-foreground hover:bg-muted'
             }`}
           >
             削除
           </button>
         </div>
       </div>
-      <div ref={mapContainerRef} className="h-[44vh] min-h-[320px] w-full rounded-md md:h-[56vh] md:min-h-[520px]" />
+      <div
+        ref={mapContainerRef}
+        className="h-[44vh] min-h-[320px] w-full rounded-md md:h-[56vh] md:min-h-[520px]"
+      />
       <p className="mt-2 text-[11px] text-muted-foreground">
         線上を押したままドラッグすると途中点を追加できます。始点/終点は固定です。
       </p>

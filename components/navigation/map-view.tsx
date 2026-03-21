@@ -4,7 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AreaNode, MoveNode } from '@/lib/types'
 import { TRANSPORT_LABELS } from '@/lib/types'
 import type { NavigateMapEntry, NavigateRouteSegment } from '@/components/navigation/types'
-import { formatDistanceKm, getTransportRouteStyle, hasVisibleMove } from '@/components/navigation/utils'
+import {
+  formatDistanceKm,
+  getTransportRouteStyle,
+  hasVisibleMove,
+} from '@/components/navigation/utils'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -30,7 +34,15 @@ function truncateLabel(value: string, maxLength: number) {
   return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value
 }
 
-function createSpotMarkerIcon({ sequence, name, isActive }: { sequence: number; name: string; isActive: boolean }) {
+function createSpotMarkerIcon({
+  sequence,
+  name,
+  isActive,
+}: {
+  sequence: number
+  name: string
+  isActive: boolean
+}) {
   const title = isActive ? escapeHtml(truncateLabel(name, 12)) : ''
   const html = `
     <div class="map-pin-shell${isActive ? ' map-pin-shell--active' : ''}">
@@ -287,7 +299,11 @@ export function MapView({
               </span>
               <span className="map-route-chip__body">
                 <span className="map-route-chip__title">{chip.title}</span>
-                <span className={`map-route-chip__detail${chip.kind === 'area' ? ' map-route-chip__detail--area' : ''}`}>{chip.detail}</span>
+                <span
+                  className={`map-route-chip__detail${chip.kind === 'area' ? ' map-route-chip__detail--area' : ''}`}
+                >
+                  {chip.detail}
+                </span>
               </span>
             </button>
           ))}

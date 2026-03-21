@@ -120,7 +120,8 @@ export function AddSpotDialog({
   const trip = getTrip(tripId)
   const timelineNodes = useMemo(() => (trip ? getTripTimelineNodes(trip) : []), [trip])
 
-  const canSearchSpot = isSpotSearchEnabled && open && nodeType === 'spot' && name.trim().length >= 2
+  const canSearchSpot =
+    isSpotSearchEnabled && open && nodeType === 'spot' && name.trim().length >= 2
   const searchQuery = useMemo(() => name.trim(), [name])
 
   useEffect(() => {
@@ -165,15 +166,21 @@ export function AddSpotDialog({
       setImage(editingMove.image)
       const moveAnchors = findMoveAnchorSpots(timelineNodes, editingMove.id)
       const fullPath = buildMovePathPoints(editingMove, {
-        from: moveAnchors.fromSpot ? { lat: moveAnchors.fromSpot.lat, lng: moveAnchors.fromSpot.lng } : undefined,
-        to: moveAnchors.toSpot ? { lat: moveAnchors.toSpot.lat, lng: moveAnchors.toSpot.lng } : undefined,
+        from: moveAnchors.fromSpot
+          ? { lat: moveAnchors.fromSpot.lat, lng: moveAnchors.fromSpot.lng }
+          : undefined,
+        to: moveAnchors.toSpot
+          ? { lat: moveAnchors.toSpot.lat, lng: moveAnchors.toSpot.lng }
+          : undefined,
       })
       setMovePathMiddlePoints(
         extractEditableMiddlePoints(fullPath, {
           from: moveAnchors.fromSpot
             ? { lat: moveAnchors.fromSpot.lat, lng: moveAnchors.fromSpot.lng }
             : undefined,
-          to: moveAnchors.toSpot ? { lat: moveAnchors.toSpot.lat, lng: moveAnchors.toSpot.lng } : undefined,
+          to: moveAnchors.toSpot
+            ? { lat: moveAnchors.toSpot.lat, lng: moveAnchors.toSpot.lng }
+            : undefined,
         })
       )
       return
@@ -193,7 +200,16 @@ export function AddSpotDialog({
     setLng(null)
     setImage('')
     setMovePathMiddlePoints([])
-  }, [open, defaultDay, defaultTime, defaultEndTime, defaultNodeType, editingSpot, editingMove, timelineNodes])
+  }, [
+    open,
+    defaultDay,
+    defaultTime,
+    defaultEndTime,
+    defaultNodeType,
+    editingSpot,
+    editingMove,
+    timelineNodes,
+  ])
 
   const resetForm = () => {
     setName('')
@@ -220,8 +236,12 @@ export function AddSpotDialog({
     if (editingMove) {
       const { fromSpot, toSpot } = findMoveAnchorSpots(timelineNodes, editingMove.id)
       return {
-        from: fromSpot ? { lat: fromSpot.lat, lng: fromSpot.lng } : toPoint(editingMove.fromLat, editingMove.fromLng),
-        to: toSpot ? { lat: toSpot.lat, lng: toSpot.lng } : toPoint(editingMove.toLat, editingMove.toLng),
+        from: fromSpot
+          ? { lat: fromSpot.lat, lng: fromSpot.lng }
+          : toPoint(editingMove.fromLat, editingMove.fromLng),
+        to: toSpot
+          ? { lat: toSpot.lat, lng: toSpot.lng }
+          : toPoint(editingMove.toLat, editingMove.toLng),
       }
     }
 
@@ -508,40 +528,47 @@ export function AddSpotDialog({
                 nodeType === 'spot' &&
                 showSearchDropdown &&
                 (isSearching || searchError || searchResults.length > 0) && (
-                <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-border bg-popover shadow-lg">
-                  <div className="max-h-56 overflow-y-auto p-1">
-                    {isSearching && (
-                      <div className="px-2 py-2 text-xs text-muted-foreground">検索中...</div>
-                    )}
-                    {!isSearching && searchError && (
-                      <div className="px-2 py-2 text-xs text-destructive">{searchError}</div>
-                    )}
-                    {!isSearching && !searchError && searchResults.length === 0 && canSearchSpot && (
-                      <div className="px-2 py-2 text-xs text-muted-foreground">候補が見つかりません</div>
-                    )}
-                    {!isSearching &&
-                      !searchError &&
-                      searchResults.map((result) => (
-                        <button
-                          key={result.id}
-                          type="button"
-                          onClick={() => handleSelectSpotSearchResult(result)}
-                          className="flex w-full flex-col items-start rounded-sm px-2 py-2 text-left transition-colors hover:bg-accent"
-                        >
-                          <span className="text-sm text-foreground">{result.name}</span>
-                          {result.address && (
-                            <span className="text-xs text-muted-foreground">{result.address}</span>
-                          )}
-                        </button>
-                      ))}
+                  <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-border bg-popover shadow-lg">
+                    <div className="max-h-56 overflow-y-auto p-1">
+                      {isSearching && (
+                        <div className="px-2 py-2 text-xs text-muted-foreground">検索中...</div>
+                      )}
+                      {!isSearching && searchError && (
+                        <div className="px-2 py-2 text-xs text-destructive">{searchError}</div>
+                      )}
+                      {!isSearching &&
+                        !searchError &&
+                        searchResults.length === 0 &&
+                        canSearchSpot && (
+                          <div className="px-2 py-2 text-xs text-muted-foreground">
+                            候補が見つかりません
+                          </div>
+                        )}
+                      {!isSearching &&
+                        !searchError &&
+                        searchResults.map((result) => (
+                          <button
+                            key={result.id}
+                            type="button"
+                            onClick={() => handleSelectSpotSearchResult(result)}
+                            className="flex w-full flex-col items-start rounded-sm px-2 py-2 text-left transition-colors hover:bg-accent"
+                          >
+                            <span className="text-sm text-foreground">{result.name}</span>
+                            {result.address && (
+                              <span className="text-xs text-muted-foreground">
+                                {result.address}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                    </div>
+                    <div className="border-t border-border px-2 py-1 text-[10px] text-muted-foreground">
+                      {searchProvider === 'foursquare'
+                        ? '検索: Foursquare Places'
+                        : '検索: Foursquare Places'}
+                    </div>
                   </div>
-                  <div className="border-t border-border px-2 py-1 text-[10px] text-muted-foreground">
-                    {searchProvider === 'foursquare'
-                      ? '検索: Foursquare Places'
-                      : '検索: Foursquare Places'}
-                  </div>
-                </div>
-              )}
+                )}
             </div>
             {nodeType === 'spot' && !isSpotSearchEnabled && (
               <p className="text-xs text-muted-foreground">
@@ -659,9 +686,7 @@ export function AddSpotDialog({
 
           {nodeType !== 'area' && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="node-image">
-                {nodeType === 'move' ? '移動画像URL' : '画像URL'}
-              </Label>
+              <Label htmlFor="node-image">{nodeType === 'move' ? '移動画像URL' : '画像URL'}</Label>
               <Input
                 id="node-image"
                 placeholder="https://example.com/image.jpg"
@@ -692,7 +717,8 @@ export function AddSpotDialog({
           <Button
             onClick={handleAdd}
             disabled={
-              (!name.trim() && nodeType !== 'move') || (nodeType === 'spot' && isResolvingSpotDetails)
+              (!name.trim() && nodeType !== 'move') ||
+              (nodeType === 'spot' && isResolvingSpotDetails)
             }
             className="w-full"
           >
@@ -702,11 +728,11 @@ export function AddSpotDialog({
                 ? 'スポットを保存'
                 : isEditingMove
                   ? '移動を保存'
-                : nodeType === 'spot'
-                ? 'スポットを追加'
-                : nodeType === 'move'
-                  ? '移動を追加'
-                : 'エリアを追加'}
+                  : nodeType === 'spot'
+                    ? 'スポットを追加'
+                    : nodeType === 'move'
+                      ? '移動を追加'
+                      : 'エリアを追加'}
           </Button>
         </DialogFooter>
       </DialogContent>

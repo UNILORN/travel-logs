@@ -65,10 +65,7 @@ export function ExpenseForm({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label>カテゴリ</Label>
-            <Select
-              value={category}
-              onValueChange={(v) => setCategory(v as ExpenseCategory)}
-            >
+            <Select value={category} onValueChange={(v) => setCategory(v as ExpenseCategory)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -113,7 +110,8 @@ export function ExpenseForm({
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            単価は1人分で入力されます（現在: 大人{defaultAdultCount}名 / 子供{defaultChildCount}名）。
+            単価は1人分で入力されます（現在: 大人{defaultAdultCount}名 / 子供{defaultChildCount}
+            名）。
           </p>
         </div>
         <DialogFooter>

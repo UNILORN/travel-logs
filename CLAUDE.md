@@ -10,19 +10,19 @@ All state is held in memory via React Context — there is no database or persis
 
 ## Tech Stack
 
-| Layer | Library |
-|---|---|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript 5.7 (strict mode) |
-| UI runtime | React 19 |
-| Styling | Tailwind CSS v4 (CSS-based config, no `tailwind.config.js`) |
-| UI primitives | shadcn/ui pattern (`components/ui/`) using Radix UI |
-| Icons | Lucide React |
-| Charts | Recharts |
-| Maps | Leaflet + react-leaflet |
-| Forms | react-hook-form + zod |
-| Notifications | Sonner |
-| Package manager | pnpm |
+| Layer           | Library                                                     |
+| --------------- | ----------------------------------------------------------- |
+| Framework       | Next.js 16 (App Router)                                     |
+| Language        | TypeScript 5.7 (strict mode)                                |
+| UI runtime      | React 19                                                    |
+| Styling         | Tailwind CSS v4 (CSS-based config, no `tailwind.config.js`) |
+| UI primitives   | shadcn/ui pattern (`components/ui/`) using Radix UI         |
+| Icons           | Lucide React                                                |
+| Charts          | Recharts                                                    |
+| Maps            | Leaflet + react-leaflet                                     |
+| Forms           | react-hook-form + zod                                       |
+| Notifications   | Sonner                                                      |
+| Package manager | pnpm                                                        |
 
 ## Development Commands
 
@@ -51,6 +51,7 @@ All IDs are generated with `Date.now()` (e.g., `spot-${Date.now()}`).
 **`Trip`** — top-level entity with `id`, `title`, `destination`, `startDate`, `endDate`, `status`, `members`, `budget`, `spots` (legacy), `nodes?` (new), `expenses`.
 
 **`TimelineNode`** — discriminated union (preferred model):
+
 - `SpotNode` (`type:'spot'`) — place with lat/lng, time, address
 - `MoveNode` (`type:'move'`) — transport segment with distance/mode
 - `AreaNode` (`type:'area'`) — area with a list of spot names
@@ -63,20 +64,21 @@ All IDs are generated with `Date.now()` (e.g., `spot-${Date.now()}`).
 
 All trip sub-pages are client components consuming `useTripContext()`.
 
-| Route | Purpose |
-|---|---|
-| `/` | Bookshelf — list all trips |
-| `/trip/[id]/edit` | Timeline editor |
-| `/trip/[id]/navigate` | Leaflet map |
-| `/trip/[id]/budget` | Budget gauge + expense list |
-| `/trip/[id]/report` | Charts (spending, distance, transport) |
-| `/api/spot-search` | Foursquare autocomplete proxy (server-only) |
+| Route                 | Purpose                                     |
+| --------------------- | ------------------------------------------- |
+| `/`                   | Bookshelf — list all trips                  |
+| `/trip/[id]/edit`     | Timeline editor                             |
+| `/trip/[id]/navigate` | Leaflet map                                 |
+| `/trip/[id]/budget`   | Budget gauge + expense list                 |
+| `/trip/[id]/report`   | Charts (spending, distance, transport)      |
+| `/api/spot-search`    | Foursquare autocomplete proxy (server-only) |
 
 `app/trip/[id]/layout.tsx` exports `generateStaticParams` for GitHub Pages static export pre-rendering.
 
 ### Spot Search API (`app/api/spot-search/route.ts`)
 
 Proxies Foursquare Places API. Key env vars:
+
 ```env
 FOURSQUARE_SERVICE_API_KEY=...   # required (also accepts FOURSQARE_SERVICE_API_KEY or FOURSQUARE_API_KEY)
 FOURSQUARE_SEARCH_LL=35.681236,139.767125  # optional bias
@@ -97,9 +99,11 @@ During GitHub Pages PR preview builds, `app/api/` is temporarily moved to `.app-
 ## GitHub Actions / CI
 
 ### PR Preview (`pr-preview-pages.yml`)
+
 On PR open/update: disables `app/api/`, builds with `GITHUB_PAGES_PR_PREVIEW=1` and computed `basePath`, deploys `./out` to `gh-pages` branch under `pr-preview/pr-<number>/`, and comments the preview URL.
 
 **Preview limitations** (enforced via `NEXT_PUBLIC_GITHUB_PAGES_PR_PREVIEW=1`): new trip creation and spot search are disabled, and a banner is shown.
 
 ### PR Preview Cleanup (`pr-preview-pages-cleanup.yml`)
+
 Cleans up the preview directory when a PR is closed.

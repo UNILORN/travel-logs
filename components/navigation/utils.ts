@@ -14,20 +14,50 @@ export function getTransportRouteStyle(transport: TransportType) {
     case 'car':
     case 'taxi':
     case 'bicycle':
-      return { color: '#16a34a', dashArray: undefined as string | undefined, weight: 4, opacity: 0.85 }
+      return {
+        color: '#16a34a',
+        dashArray: undefined as string | undefined,
+        weight: 4,
+        opacity: 0.85,
+      }
     case 'shinkansen':
-      return { color: '#2563eb', dashArray: undefined as string | undefined, weight: 4, opacity: 0.85 }
+      return {
+        color: '#2563eb',
+        dashArray: undefined as string | undefined,
+        weight: 4,
+        opacity: 0.85,
+      }
     case 'limited_express':
-      return { color: '#f97316', dashArray: undefined as string | undefined, weight: 4, opacity: 0.85 }
+      return {
+        color: '#f97316',
+        dashArray: undefined as string | undefined,
+        weight: 4,
+        opacity: 0.85,
+      }
     case 'bus':
-      return { color: '#eab308', dashArray: undefined as string | undefined, weight: 4, opacity: 0.9 }
+      return {
+        color: '#eab308',
+        dashArray: undefined as string | undefined,
+        weight: 4,
+        opacity: 0.9,
+      }
     case 'ferry':
       return { color: '#2563eb', dashArray: '8 8', weight: 4, opacity: 0.85 }
     case 'plane':
       return { color: '#16a34a', dashArray: '8 8', weight: 4, opacity: 0.85 }
     case 'walk':
-      return { color: '#dc2626', dashArray: undefined as string | undefined, weight: 4, opacity: 0.9 }
+      return {
+        color: '#dc2626',
+        dashArray: undefined as string | undefined,
+        weight: 4,
+        opacity: 0.9,
+      }
     default:
-      return { color: '#6b7280', dashArray: undefined as string | undefined, weight: 4, opacity: 0.85 }
+      return {
+        color: '#6b7280',
+        dashArray: undefined as string | undefined,
+        weight: 4,
+        opacity: 0.85,
+      }
   }
 }

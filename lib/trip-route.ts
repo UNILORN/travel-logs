@@ -6,4 +6,3 @@ export function buildTripPageHref(tripId: string, section: TripPageSection) {
   const encodedTripId = encodeURIComponent(tripId)
   return `/trip/${TRIP_ROUTE_FALLBACK_ID}/${section}?tripId=${encodedTripId}`
 }
-

@@ -67,6 +67,7 @@ FOURSQUARE_SEARCH_RADIUS=30000
 ```
 
 備考:
+
 - コード上では互換のため `FOURSQARE_SERVICE_API_KEY`（綴り違い）も参照しています
 
 ## 開発コマンド
@@ -80,6 +81,7 @@ pnpm exec tsc --noEmit  # 型チェック（任意）
 ```
 
 注意:
+
 - 現状 `package.json` には `lint` スクリプトがありますが、`eslint` 本体の依存が未追加の環境では `pnpm lint` が失敗します
 
 ## 技術スタック

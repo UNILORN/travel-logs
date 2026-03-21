@@ -68,13 +68,10 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
       value,
     }))
 
-    const topSpending = spendingData.reduce<{ name: string; value: number } | null>(
-      (max, item) => {
-        if (!max || item.value > max.value) return item
-        return max
-      },
-      null
-    )
+    const topSpending = spendingData.reduce<{ name: string; value: number } | null>((max, item) => {
+      if (!max || item.value > max.value) return item
+      return max
+    }, null)
 
     // Daily distances
     const dailyDistances: { day: string; distance: number }[] = []
@@ -230,9 +227,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 <p className="mt-1 font-serif text-lg font-bold text-foreground">
                   {stats.costPerKm !== null ? `${stats.costPerKm.toLocaleString()}円/km` : '-'}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  総移動 {stats.totalDistance}km
-                </p>
+                <p className="mt-1 text-xs text-muted-foreground">総移動 {stats.totalDistance}km</p>
               </div>
             </div>
 
@@ -242,7 +237,9 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 <p>
                   最長移動日:{' '}
                   <span className="font-medium text-foreground">
-                    {stats.busiestDay ? `${stats.busiestDay.day} (${stats.busiestDay.distance}km)` : '-'}
+                    {stats.busiestDay
+                      ? `${stats.busiestDay.day} (${stats.busiestDay.distance}km)`
+                      : '-'}
                   </span>
                 </p>
                 <p>
@@ -301,9 +298,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
         {trip.status === 'archived' && (
           <div className="mt-8 rounded-lg bg-muted p-4 text-center">
-            <p className="font-serif text-sm text-muted-foreground">
-              この旅はアーカイブ済みです
-            </p>
+            <p className="font-serif text-sm text-muted-foreground">この旅はアーカイブ済みです</p>
           </div>
         )}
       </main>

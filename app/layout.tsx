@@ -4,9 +4,9 @@ import { Analytics } from '@vercel/analytics/next'
 import { TripProvider } from '@/lib/trip-context'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
-const _notoSerifJP = Noto_Serif_JP({ subsets: ["latin"], weight: ["400", "700"] });
+const _geist = Geist({ subsets: ['latin'] })
+const _geistMono = Geist_Mono({ subsets: ['latin'] })
+const _notoSerifJP = Noto_Serif_JP({ subsets: ['latin'], weight: ['400', '700'] })
 
 export const metadata: Metadata = {
   title: 'たびログ - 旅のプランニング & アーカイブ',
@@ -47,9 +47,7 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className="font-sans antialiased">
-        <TripProvider>
-          {children}
-        </TripProvider>
+        <TripProvider>{children}</TripProvider>
         <Analytics />
       </body>
     </html>

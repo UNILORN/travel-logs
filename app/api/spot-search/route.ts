@@ -166,17 +166,11 @@ function getAutocompleteArray(data: unknown): FsqAutocompleteResult[] {
 function mapAutocompleteResults(results: FsqAutocompleteResult[]): SpotSearchItem[] {
   return results
     .map((result, index) => {
-      const place =
-        result.placePrediction?.place ??
-        result.geoPrediction ??
-        result.place ??
-        result
-      const placeName =
-        'name' in place && typeof place.name === 'string' ? place.name.trim() : ''
+      const place = result.placePrediction?.place ?? result.geoPrediction ?? result.place ?? result
+      const placeName = 'name' in place && typeof place.name === 'string' ? place.name.trim() : ''
       const placeFsqId =
         'fsq_id' in place && typeof place.fsq_id === 'string' ? place.fsq_id : undefined
-      const placeId =
-        'id' in place && typeof place.id === 'string' ? place.id : undefined
+      const placeId = 'id' in place && typeof place.id === 'string' ? place.id : undefined
       const latLng = pickLatLng(result)
 
       const name =
@@ -390,9 +384,7 @@ export async function GET(req: NextRequest) {
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(10, limitRaw)) : 6
   const lang = req.nextUrl.searchParams.get('lang')?.trim() || 'ja'
   const ll =
-    req.nextUrl.searchParams.get('ll')?.trim() ||
-    process.env.FOURSQUARE_SEARCH_LL ||
-    undefined
+    req.nextUrl.searchParams.get('ll')?.trim() || process.env.FOURSQUARE_SEARCH_LL || undefined
   const radius =
     req.nextUrl.searchParams.get('radius')?.trim() ||
     process.env.FOURSQUARE_SEARCH_RADIUS ||

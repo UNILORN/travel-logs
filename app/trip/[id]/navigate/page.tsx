@@ -19,7 +19,14 @@ import { cn } from '@/lib/utils'
 
 const MapView = dynamic(
   () => import('@/components/navigation/map-view').then((mod) => mod.MapView),
-  { ssr: false, loading: () => <div className="flex h-full items-center justify-center bg-muted"><p className="text-sm text-muted-foreground">地図を読み込み中...</p></div> }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center bg-muted">
+        <p className="text-sm text-muted-foreground">地図を読み込み中...</p>
+      </div>
+    ),
+  }
 )
 
 const SWIPE_THRESHOLD_PX = 48
@@ -70,7 +77,9 @@ function MoveDirectionBadge({
         {directionLabel}
       </span>
       <span className="flex h-full min-w-0 flex-1 flex-col justify-center">
-        <span className={cn('block truncate text-[11px] font-medium text-foreground', titleClassName)}>
+        <span
+          className={cn('block truncate text-[11px] font-medium text-foreground', titleClassName)}
+        >
           {move.name}
         </span>
         <span className="block truncate text-[10px] leading-none text-muted-foreground">
@@ -195,13 +204,11 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
       null
 
     const activeMove =
-      timelineNodes
-        .filter(isMoveNode)
-        .find((move) => {
-          const startAt = createTripDateTime(trip.startDate, move.day, move.time).getTime()
-          const endAt = createTripDateTime(trip.startDate, move.day, move.endTime).getTime()
-          return nowTs >= startAt && nowTs <= endAt
-        }) ?? null
+      timelineNodes.filter(isMoveNode).find((move) => {
+        const startAt = createTripDateTime(trip.startDate, move.day, move.time).getTime()
+        const endAt = createTripDateTime(trip.startDate, move.day, move.endTime).getTime()
+        return nowTs >= startAt && nowTs <= endAt
+      }) ?? null
 
     return { nextSpot, activeMove }
   }, [currentDateTime, timelineNodes, trip])
@@ -269,7 +276,10 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background pb-16">
         <p className="text-muted-foreground">スポットがまだありません</p>
-        <Link href={buildTripPageHref(tripId, 'edit')} className="mt-2 text-sm text-primary hover:underline">
+        <Link
+          href={buildTripPageHref(tripId, 'edit')}
+          className="mt-2 text-sm text-primary hover:underline"
+        >
           旅程を編集する
         </Link>
         <BottomNav tripId={tripId} active="navigate" />
@@ -310,8 +320,12 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
           <div className="w-[min(92vw,34rem)] rounded-2xl border border-white/50 bg-gradient-to-r from-card/95 via-card/90 to-card/95 px-3 py-2 shadow-lg backdrop-blur-md">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold tracking-[0.18em] text-muted-foreground">現在日時</p>
-                <p className="text-[11px] text-muted-foreground">{formatCurrentDate(currentDateTime)}</p>
+                <p className="text-[10px] font-semibold tracking-[0.18em] text-muted-foreground">
+                  現在日時
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {formatCurrentDate(currentDateTime)}
+                </p>
                 <p className="font-mono text-lg font-bold leading-none text-foreground">
                   {formatCurrentTime(currentDateTime)}
                 </p>
@@ -324,7 +338,11 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
                   </p>
                   {nowBasedInfo.nextSpot && (
                     <p className="text-[10px] text-muted-foreground">
-                      Day {nowBasedInfo.nextSpot.day} {formatNodeTimeLabel(nowBasedInfo.nextSpot.time, nowBasedInfo.nextSpot.endTime)}
+                      Day {nowBasedInfo.nextSpot.day}{' '}
+                      {formatNodeTimeLabel(
+                        nowBasedInfo.nextSpot.time,
+                        nowBasedInfo.nextSpot.endTime
+                      )}
                     </p>
                   )}
                 </div>
@@ -332,9 +350,15 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
                   <p className="text-[10px] font-semibold text-muted-foreground">移動</p>
                   {nowBasedInfo.activeMove ? (
                     <>
-                      <p className="truncate text-xs font-semibold text-foreground">移動中: {nowBasedInfo.activeMove.name}</p>
+                      <p className="truncate text-xs font-semibold text-foreground">
+                        移動中: {nowBasedInfo.activeMove.name}
+                      </p>
                       <p className="text-[10px] text-muted-foreground">
-                        Day {nowBasedInfo.activeMove.day} {formatNodeTimeLabel(nowBasedInfo.activeMove.time, nowBasedInfo.activeMove.endTime)}
+                        Day {nowBasedInfo.activeMove.day}{' '}
+                        {formatNodeTimeLabel(
+                          nowBasedInfo.activeMove.time,
+                          nowBasedInfo.activeMove.endTime
+                        )}
                       </p>
                     </>
                   ) : (
@@ -419,7 +443,9 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
                   Day {activeSpot.day}
                 </span>
                 <Clock className="size-3" />
-                <span>{activeSpot.time} - {activeSpot.endTime}</span>
+                <span>
+                  {activeSpot.time} - {activeSpot.endTime}
+                </span>
               </div>
               <h3 className="mt-1 truncate font-serif text-base font-bold text-foreground">
                 {activeSpot.name}

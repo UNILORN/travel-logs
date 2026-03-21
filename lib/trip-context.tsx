@@ -224,9 +224,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
         })
 
         // If node timeline is already active, keep spot nodes in sync.
-        const nodes = t.nodes
-          ? [...t.nodes, spotToNode(newSpot)].sort(sortTimelineNodes)
-          : t.nodes
+        const nodes = t.nodes ? [...t.nodes, spotToNode(newSpot)].sort(sortTimelineNodes) : t.nodes
 
         return { ...t, spots, nodes }
       })
@@ -240,15 +238,11 @@ export function TripProvider({ children }: { children: ReactNode }) {
 
         const existingSpot = t.spots.find((s) => s.id === spotId)
         const existingSpotNode = t.nodes?.find(
-          (
-            node
-          ): node is Extract<TimelineNode, { type: 'spot' }> =>
+          (node): node is Extract<TimelineNode, { type: 'spot' }> =>
             node.type === 'spot' && node.id === spotId
         )
         const linkedMove = t.nodes?.find(
-          (
-            node
-          ): node is Extract<TimelineNode, { type: 'move' }> =>
+          (node): node is Extract<TimelineNode, { type: 'move' }> =>
             node.type === 'move' && node.id === `move-${spotId}`
         )
 

@@ -18,13 +18,7 @@ import {
   Train,
   Trash2,
 } from 'lucide-react'
-import type {
-  MoveNode,
-  Spot,
-  TimelineNode,
-  TransportType,
-  Trip,
-} from '@/lib/types'
+import type { MoveNode, Spot, TimelineNode, TransportType, Trip } from '@/lib/types'
 import { TRANSPORT_LABELS } from '@/lib/types'
 import { useTripContext } from '@/lib/trip-context'
 import { getTripTimelineNodes } from '@/lib/timeline-nodes'
@@ -163,7 +157,9 @@ function NodeBlock({
           <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/5 p-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-xs text-emerald-700">
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium">エリア</span>
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium">
+                  エリア
+                </span>
               </div>
               {isEditable && (
                 <button
@@ -403,9 +399,7 @@ export function Timeline({
     if (node.type !== 'spot') return undefined
 
     const linkedMove = allNodes.find(
-      (
-        candidate
-      ): candidate is Extract<TimelineNode, { type: 'move' }> =>
+      (candidate): candidate is Extract<TimelineNode, { type: 'move' }> =>
         candidate.type === 'move' && candidate.id === `move-${node.id}`
     )
 

@@ -196,7 +196,8 @@ export default function BookshelfPage() {
 
         {isPagesPrPreview && (
           <div className="mb-4 rounded-xl border border-border bg-muted/50 p-3 text-xs text-muted-foreground">
-            PRプレビューでは GitHub Pages の静的配信制約により、新規旅作成とスポット検索を無効化しています。
+            PRプレビューでは GitHub Pages
+            の静的配信制約により、新規旅作成とスポット検索を無効化しています。
           </div>
         )}
 
@@ -243,9 +244,7 @@ export default function BookshelfPage() {
             <p className="mb-2 font-serif text-lg text-muted-foreground">
               まだ旅の計画がありません
             </p>
-            <p className="text-sm text-muted-foreground">
-              下のボタンから新しい旅を始めましょう
-            </p>
+            <p className="text-sm text-muted-foreground">下のボタンから新しい旅を始めましょう</p>
           </div>
         )}
       </main>

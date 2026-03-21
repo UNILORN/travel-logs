@@ -162,7 +162,11 @@ function sortLegacySpots(spots: Spot[]) {
   })
 }
 
-function normalizeNode(node: TimelineNodeInput, tripIndex: number, nodeIndex: number): TimelineNode {
+function normalizeNode(
+  node: TimelineNodeInput,
+  tripIndex: number,
+  nodeIndex: number
+): TimelineNode {
   return {
     ...node,
     id: node.id ?? createFallbackId(node.type, tripIndex, nodeIndex),
@@ -232,7 +236,9 @@ function deriveLegacySpotsFromNodes(nodes: TimelineNode[]): Spot[] {
 }
 
 function normalizeTrip(raw: TripInput, tripIndex: number): Trip {
-  const normalizedNodes = raw.nodes.map((node, nodeIndex) => normalizeNode(node, tripIndex, nodeIndex))
+  const normalizedNodes = raw.nodes.map((node, nodeIndex) =>
+    normalizeNode(node, tripIndex, nodeIndex)
+  )
   const normalizedSpots = raw.spots.map((spot, spotIndex) =>
     normalizeLegacySpot(spot, tripIndex, spotIndex)
   )
@@ -245,7 +251,9 @@ function normalizeTrip(raw: TripInput, tripIndex: number): Trip {
       ? [...normalizedNodes].sort(sortTimelineNodes)
       : buildTimelineNodesFromLegacySpots(normalizedSpots)
   const spots =
-    normalizedSpots.length > 0 ? sortLegacySpots(normalizedSpots) : deriveLegacySpotsFromNodes(nodes)
+    normalizedSpots.length > 0
+      ? sortLegacySpots(normalizedSpots)
+      : deriveLegacySpotsFromNodes(nodes)
 
   return {
     id: raw.id ?? createFallbackId('trip', tripIndex, 0),

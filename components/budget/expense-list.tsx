@@ -5,13 +5,7 @@ import { CATEGORY_LABELS } from '@/lib/types'
 import type { Expense } from '@/lib/types'
 import { Trash2 } from 'lucide-react'
 
-export function ExpenseList({
-  expenses,
-  tripId,
-}: {
-  expenses: Expense[]
-  tripId: string
-}) {
+export function ExpenseList({ expenses, tripId }: { expenses: Expense[]; tripId: string }) {
   const { removeExpense } = useTripContext()
 
   if (expenses.length === 0) {
@@ -34,9 +28,7 @@ export function ExpenseList({
               <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
                 {CATEGORY_LABELS[expense.category]}
               </span>
-              <span className="truncate text-sm font-medium text-foreground">
-                {expense.name}
-              </span>
+              <span className="truncate text-sm font-medium text-foreground">{expense.name}</span>
             </div>
             <div className="mt-1 flex gap-3 text-xs text-muted-foreground">
               <span>

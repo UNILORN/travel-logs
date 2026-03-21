@@ -57,9 +57,7 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
       : 0
 
   const filteredExpenses =
-    activeTab === 'all'
-      ? trip.expenses
-      : trip.expenses.filter((e) => e.category === activeTab)
+    activeTab === 'all' ? trip.expenses : trip.expenses.filter((e) => e.category === activeTab)
 
   const hasSettingsChanges =
     budgetInput !== trip.budget ||
@@ -123,11 +121,7 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
                 <Button variant="outline" size="sm" onClick={handleCancelEditingSettings}>
                   キャンセル
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSaveSettings}
-                  disabled={!hasSettingsChanges}
-                >
+                <Button size="sm" onClick={handleSaveSettings} disabled={!hasSettingsChanges}>
                   保存
                 </Button>
               </div>
@@ -187,11 +181,7 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
         </section>
 
         {/* Budget Gauge */}
-        <BudgetGauge
-          spent={totalSpent}
-          budget={trip.budget}
-          percentage={percentage}
-        />
+        <BudgetGauge spent={totalSpent} budget={trip.budget} percentage={percentage} />
 
         {/* Member Info */}
         <div className="mt-4 flex items-center gap-2 rounded-lg bg-card p-3 text-sm shadow-sm border border-border">
@@ -212,7 +202,9 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
           className="mt-4"
         >
           <TabsList className="w-full">
-            <TabsTrigger value="all" className="text-xs">全て</TabsTrigger>
+            <TabsTrigger value="all" className="text-xs">
+              全て
+            </TabsTrigger>
             {(Object.keys(CATEGORY_LABELS) as ExpenseCategory[]).map((cat) => (
               <TabsTrigger key={cat} value={cat} className="text-xs">
                 {CATEGORY_LABELS[cat]}
@@ -221,10 +213,7 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-3">
-            <ExpenseList
-              expenses={filteredExpenses}
-              tripId={tripId}
-            />
+            <ExpenseList expenses={filteredExpenses} tripId={tripId} />
           </TabsContent>
         </Tabs>
 
@@ -240,9 +229,7 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
             <span className="text-sm text-muted-foreground">残りの予算</span>
             <span
               className={`font-serif text-lg font-bold ${
-                trip.budget - totalSpent < 0
-                  ? 'text-destructive'
-                  : 'text-primary'
+                trip.budget - totalSpent < 0 ? 'text-destructive' : 'text-primary'
               }`}
             >
               {(trip.budget - totalSpent).toLocaleString()}円
@@ -260,11 +247,7 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
         <Plus className="size-5" />
       </button>
 
-      <ExpenseForm
-        tripId={tripId}
-        open={showForm}
-        onOpenChange={setShowForm}
-      />
+      <ExpenseForm tripId={tripId} open={showForm} onOpenChange={setShowForm} />
 
       <BottomNav tripId={tripId} active="budget" />
     </div>

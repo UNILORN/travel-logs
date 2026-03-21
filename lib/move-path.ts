@@ -9,7 +9,9 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
-export function isValidLatLngPoint(point: Partial<LatLngPoint> | null | undefined): point is LatLngPoint {
+export function isValidLatLngPoint(
+  point: Partial<LatLngPoint> | null | undefined
+): point is LatLngPoint {
   return (
     !!point &&
     isFiniteNumber(point.lat) &&
@@ -69,7 +71,10 @@ export function buildMovePathPoints(
   return dedupeSequentialPathPoints(storedPath)
 }
 
-export function extractEditableMiddlePoints(path: LatLngPoint[], anchors?: { from?: LatLngPoint; to?: LatLngPoint }) {
+export function extractEditableMiddlePoints(
+  path: LatLngPoint[],
+  anchors?: { from?: LatLngPoint; to?: LatLngPoint }
+) {
   const points = [...path]
   if (anchors?.from && points.length > 0 && isSamePoint(points[0], anchors.from)) {
     points.shift()

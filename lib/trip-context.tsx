@@ -151,7 +151,11 @@ export function TripProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!didLoadFromStorageRef.current) return
-    window.localStorage.setItem(TRIPS_STORAGE_KEY, stringifyTrips(trips))
+    try {
+      window.localStorage.setItem(TRIPS_STORAGE_KEY, stringifyTrips(trips))
+    } catch (error) {
+      console.warn('旅行データの保存に失敗しました。', error)
+    }
   }, [trips])
 
   const getTrip = useCallback((id: string) => trips.find((t) => t.id === id), [trips])

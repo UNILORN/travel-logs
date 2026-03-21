@@ -27,45 +27,14 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
   }, [id])
 
   const trip = getTrip(tripId)
-  if (!trip) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-muted-foreground">旅行が見つかりません</p>
-      </div>
-    )
-  }
 
-  const dayCount =
-    Math.ceil(
-      (new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) /
-        (1000 * 60 * 60 * 24)
-    ) + 1
+  const dayCount = trip
+    ? Math.ceil(
+        (new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) /
+          (1000 * 60 * 60 * 24)
+      ) + 1
+    : 0
   const days = useMemo(() => Array.from({ length: dayCount }, (_, i) => i + 1), [dayCount])
-  const isEditMode = timelineMode === 'edit'
-
-  const handleOpenAddNode = (nextDraft: TimelineInsertDraft) => {
-    if (!isEditMode) return
-    setEditingSpot(null)
-    setEditingMove(null)
-    setDraft(nextDraft)
-    setAddSpotOpen(true)
-  }
-
-  const handleOpenEditSpot = (spot: Spot) => {
-    if (!isEditMode) return
-    setEditingSpot(spot)
-    setEditingMove(null)
-    setDraft({ day: spot.day, time: spot.time, endTime: spot.endTime, type: 'spot' })
-    setAddSpotOpen(true)
-  }
-
-  const handleOpenEditMove = (node: MoveNode) => {
-    if (!isEditMode) return
-    setEditingSpot(null)
-    setEditingMove(node)
-    setDraft({ day: node.day, time: node.time, endTime: node.endTime, type: 'move' })
-    setAddSpotOpen(true)
-  }
 
   useEffect(() => {
     if (days.length === 0) return
@@ -93,6 +62,40 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
       window.removeEventListener('resize', updateActiveDay)
     }
   }, [days])
+
+  if (!trip) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-muted-foreground">旅行が見つかりません</p>
+      </div>
+    )
+  }
+
+  const isEditMode = timelineMode === 'edit'
+
+  const handleOpenAddNode = (nextDraft: TimelineInsertDraft) => {
+    if (!isEditMode) return
+    setEditingSpot(null)
+    setEditingMove(null)
+    setDraft(nextDraft)
+    setAddSpotOpen(true)
+  }
+
+  const handleOpenEditSpot = (spot: Spot) => {
+    if (!isEditMode) return
+    setEditingSpot(spot)
+    setEditingMove(null)
+    setDraft({ day: spot.day, time: spot.time, endTime: spot.endTime, type: 'spot' })
+    setAddSpotOpen(true)
+  }
+
+  const handleOpenEditMove = (node: MoveNode) => {
+    if (!isEditMode) return
+    setEditingSpot(null)
+    setEditingMove(node)
+    setDraft({ day: node.day, time: node.time, endTime: node.endTime, type: 'move' })
+    setAddSpotOpen(true)
+  }
 
   const handleJumpToDay = (day: number) => {
     const section = document.getElementById(`day-${day}`)

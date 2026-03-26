@@ -1,0 +1,4 @@
+interface:
+  display_name: "Feature Deliberation Cycle"
+  short_description: "Run a bounded multi-agent feature design and build cycle"
+  default_prompt: "Use $feature-deliberation-cycle to design and implement a new feature in this repository with the minimum relevant council from agents/."

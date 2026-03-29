@@ -75,6 +75,8 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
 
   const isEditMode = timelineMode === 'edit'
   const showSidebar = isDesktop && isEditMode && addSpotOpen
+  // 移動ノード編集時はサイドバーを広げてマップを使いやすくする
+  const isMoveSidebar = showSidebar && (editingMove !== null || draft.type === 'move')
 
   const handleOpenAddNode = (nextDraft: TimelineInsertDraft) => {
     if (!isEditMode) return
@@ -108,7 +110,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
   }
 
   return (
-    <div className={`min-h-screen bg-background pb-24 transition-[padding] duration-200${showSidebar ? ' lg:pr-[400px]' : ''}`}>
+    <div className={`min-h-screen bg-background pb-24 transition-[padding] duration-200${isMoveSidebar ? ' lg:pr-[656px]' : showSidebar ? ' lg:pr-[400px]' : ''}`}>
       <ItineraryHeader trip={trip} />
 
       <div className="fixed inset-x-0 top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur">
@@ -204,9 +206,9 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
 
       {/* デスクトップ: 右サイドバーパネル */}
       <div
-        className={`hidden lg:flex fixed right-0 top-14 z-30 w-96 flex-col border-l border-border bg-background transition-transform duration-200 ${
+        className={`hidden lg:flex fixed right-0 top-14 z-30 flex-col border-l border-border bg-background transition-all duration-200 ${
           showSidebar ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        } ${isMoveSidebar ? 'w-[640px]' : 'w-96'}`}
         style={{ height: 'calc(100vh - 56px - 64px)' }}
         aria-hidden={!showSidebar}
       >

@@ -643,7 +643,7 @@ export function AddSpotDialog({
               endPoint={moveAnchors.to}
               middlePoints={movePathMiddlePoints}
               onChange={setMovePathMiddlePoints}
-              compact={mode === 'sidebar'}
+              compact={false}
             />
             {(!moveAnchors.from || !moveAnchors.to) && (
               <p className="mt-1 text-[11px] text-muted-foreground">

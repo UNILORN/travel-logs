@@ -384,12 +384,14 @@ export function Timeline({
   onAddNode,
   onEditSpot,
   onEditMove,
+  columns = 1,
 }: {
   trip: Trip
   isEditable: boolean
   onAddNode: (draft: TimelineInsertDraft) => void
   onEditSpot?: (spot: Spot) => void
   onEditMove?: (node: MoveNode) => void
+  columns?: number
 }) {
   const dayCount =
     Math.ceil(
@@ -429,7 +431,7 @@ export function Timeline({
   const days = Array.from({ length: dayCount }, (_, i) => i + 1)
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={columns === 3 ? 'grid grid-cols-3 items-start gap-6' : 'flex flex-col gap-6'}>
       {days.map((day) => {
         const dayNodes = allNodes.filter((node) => node.day === day)
 

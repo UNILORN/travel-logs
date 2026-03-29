@@ -86,11 +86,13 @@ export function MovePathEditor({
   endPoint,
   middlePoints,
   onChange,
+  compact = false,
 }: {
   startPoint?: LatLngPoint
   endPoint?: LatLngPoint
   middlePoints: LatLngPoint[]
   onChange: (points: LatLngPoint[]) => void
+  compact?: boolean
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<import('leaflet').Map | null>(null)
@@ -354,7 +356,7 @@ export function MovePathEditor({
           </button>
         </div>
       </div>
-      <div ref={mapContainerRef} className="h-[44vh] min-h-[320px] w-full rounded-md md:h-[56vh] md:min-h-[520px]" />
+      <div ref={mapContainerRef} className={compact ? 'h-[280px] min-h-[280px] w-full rounded-md' : 'h-[44vh] min-h-[320px] w-full rounded-md md:h-[56vh] md:min-h-[520px]'} />
       <p className="mt-2 text-[11px] text-muted-foreground">
         線上を押したままドラッグすると途中点を追加できます。始点/終点は固定です。
       </p>

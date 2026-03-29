@@ -10,6 +10,7 @@ import { BottomNav } from '@/components/shared/bottom-nav'
 import { Plus } from 'lucide-react'
 import { useTripContext } from '@/lib/trip-context'
 import { resolveTripIdFromSearch } from '@/lib/trip-id'
+import { useIsDesktop } from '@/hooks/use-is-desktop'
 
 export default function EditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -21,6 +22,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null)
   const [editingMove, setEditingMove] = useState<MoveNode | null>(null)
   const [activeDay, setActiveDay] = useState(1)
+  const isDesktop = useIsDesktop()
 
   useEffect(() => {
     setTripId(resolveTripIdFromSearch(id, window.location.search))
@@ -72,6 +74,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
   }
 
   const isEditMode = timelineMode === 'edit'
+  const showSidebar = isDesktop && isEditMode && addSpotOpen
 
   const handleOpenAddNode = (nextDraft: TimelineInsertDraft) => {
     if (!isEditMode) return
@@ -105,7 +108,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className={`min-h-screen bg-background pb-24 transition-[padding] duration-200${showSidebar ? ' lg:pr-[400px]' : ''}`}>
       <ItineraryHeader trip={trip} />
 
       <div className="fixed inset-x-0 top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur">
@@ -136,7 +139,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
         </div>
       </div>
 
-      <main className="mx-auto max-w-md px-4 pt-20">
+      <main className={`mx-auto px-4 pt-20 lg:px-8${showSidebar ? ' lg:max-w-none' : ' max-w-md lg:max-w-5xl'}`}>
         <div className="mb-4">
           <p className="mb-2 text-xs font-medium text-muted-foreground">旅程の表示</p>
           <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1">
@@ -178,6 +181,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
           onAddNode={handleOpenAddNode}
           onEditSpot={handleOpenEditSpot}
           onEditMove={handleOpenEditMove}
+          columns={isDesktop ? 3 : 1}
         />
       </main>
 
@@ -189,30 +193,63 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
             setDraft({ day: 1, type: 'spot' })
             setAddSpotOpen(true)
           }}
-          className="fixed bottom-20 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+          className={`fixed bottom-20 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-all hover:scale-105 active:scale-95 ${
+            showSidebar ? 'right-[400px]' : 'right-4'
+          }`}
           aria-label="ノードを追加"
         >
           <Plus className="size-5" />
         </button>
       )}
 
-      <AddSpotDialog
-        tripId={tripId}
-        open={isEditMode && addSpotOpen}
-        onOpenChange={(open) => {
-          setAddSpotOpen(open)
-          if (!open) {
-            setEditingSpot(null)
-            setEditingMove(null)
-          }
-        }}
-        defaultDay={draft.day}
-        defaultTime={draft.time}
-        defaultEndTime={draft.endTime}
-        defaultNodeType={draft.type}
-        editingSpot={editingSpot}
-        editingMove={editingMove}
-      />
+      {/* デスクトップ: 右サイドバーパネル */}
+      <div
+        className={`hidden lg:flex fixed right-0 top-14 z-30 w-96 flex-col border-l border-border bg-background transition-transform duration-200 ${
+          showSidebar ? 'translate-x-0' : 'translate-x-full'
+        }`}
+        style={{ height: 'calc(100vh - 56px - 64px)' }}
+        aria-hidden={!showSidebar}
+      >
+        <AddSpotDialog
+          mode="sidebar"
+          tripId={tripId}
+          open={showSidebar}
+          onOpenChange={(open) => {
+            setAddSpotOpen(open)
+            if (!open) {
+              setEditingSpot(null)
+              setEditingMove(null)
+            }
+          }}
+          defaultDay={draft.day}
+          defaultTime={draft.time}
+          defaultEndTime={draft.endTime}
+          defaultNodeType={draft.type}
+          editingSpot={editingSpot}
+          editingMove={editingMove}
+        />
+      </div>
+
+      {/* モバイル: ダイアログ */}
+      {!isDesktop && (
+        <AddSpotDialog
+          tripId={tripId}
+          open={isEditMode && addSpotOpen}
+          onOpenChange={(open) => {
+            setAddSpotOpen(open)
+            if (!open) {
+              setEditingSpot(null)
+              setEditingMove(null)
+            }
+          }}
+          defaultDay={draft.day}
+          defaultTime={draft.time}
+          defaultEndTime={draft.endTime}
+          defaultNodeType={draft.type}
+          editingSpot={editingSpot}
+          editingMove={editingMove}
+        />
+      )}
 
       <BottomNav tripId={tripId} active="edit" />
     </div>

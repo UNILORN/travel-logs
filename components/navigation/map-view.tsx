@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import type { AreaNode, MoveNode } from '@/lib/types'
 import { TRANSPORT_LABELS } from '@/lib/types'
 import type { NavigateMapEntry, NavigateRouteSegment } from '@/components/navigation/types'
@@ -28,6 +28,15 @@ function escapeHtml(value: string) {
 
 function truncateLabel(value: string, maxLength: number) {
   return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value
+}
+
+function createLocationMarkerIcon() {
+  return L.divIcon({
+    html: `<div class="location-dot"><div class="location-dot__pulse"></div><div class="location-dot__inner"></div></div>`,
+    className: '',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  })
 }
 
 function createSpotMarkerIcon({ sequence, name, isActive }: { sequence: number; name: string; isActive: boolean }) {
@@ -84,6 +93,8 @@ export function MapView({
   onMarkerClick,
   onPrevClick,
   onNextClick,
+  userLocation,
+  isFollowingLocation,
 }: {
   entries: NavigateMapEntry[]
   routes: NavigateRouteSegment[]
@@ -91,12 +102,15 @@ export function MapView({
   onMarkerClick: (spotId: string) => void
   onPrevClick: () => void
   onNextClick: () => void
+  userLocation: { lat: number; lng: number } | null
+  isFollowingLocation: boolean
 }) {
   const mapRef = useRef<L.Map | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const markersRef = useRef<L.Marker[]>([])
   const polylineRef = useRef<L.Polyline[]>([])
+  const locationMarkerRef = useRef<L.Marker | null>(null)
   const onMarkerClickRef = useRef(onMarkerClick)
   const [activeAnchorPoint, setActiveAnchorPoint] = useState<AnchorPoint | null>(null)
   onMarkerClickRef.current = onMarkerClick
@@ -217,14 +231,42 @@ export function MapView({
     }
   }, [entries, routes, activeSpotId])
 
-  // Pan to active spot
+  // Pan to active spot (skip when following current location)
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !activeSpotId) return
+    if (!map || !activeSpotId || isFollowingLocation) return
     if (activeEntry) {
       map.flyTo([activeEntry.spot.lat, activeEntry.spot.lng], 14, { duration: 0.8 })
     }
-  }, [activeSpotId, activeEntry])
+  }, [activeSpotId, activeEntry, isFollowingLocation])
+
+  // Update current location marker and pan when following
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    if (!userLocation) {
+      if (locationMarkerRef.current) {
+        locationMarkerRef.current.remove()
+        locationMarkerRef.current = null
+      }
+      return
+    }
+
+    if (locationMarkerRef.current) {
+      locationMarkerRef.current.setLatLng([userLocation.lat, userLocation.lng])
+    } else {
+      locationMarkerRef.current = L.marker([userLocation.lat, userLocation.lng], {
+        icon: createLocationMarkerIcon(),
+        zIndexOffset: 2000,
+        interactive: false,
+      }).addTo(map)
+    }
+
+    if (isFollowingLocation) {
+      map.panTo([userLocation.lat, userLocation.lng], { animate: true, duration: 0.5 })
+    }
+  }, [userLocation, isFollowingLocation])
 
   // Keep the route overlay aligned with the active marker while the map moves.
   useEffect(() => {

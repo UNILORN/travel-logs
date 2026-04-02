@@ -5,9 +5,10 @@ import { useTripContext } from '@/lib/trip-context'
 import type { Trip } from '@/lib/types'
 import { STATUS_LABELS } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
-import { Archive, Download, MapPinned, Plus, Sparkles, Trash2, Upload } from 'lucide-react'
+import { Archive, Clipboard, Download, MapPinned, Plus, Sparkles, Trash2, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { NewTripDialog } from '@/components/bookshelf/new-trip-dialog'
+import { TripClipboardDialog } from '@/components/bookshelf/trip-clipboard-dialog'
 import { Button } from '@/components/ui/button'
 import { parseTripsFromJson, stringifyTrips } from '@/lib/trip-json'
 import { buildTripPageHref } from '@/lib/trip-route'
@@ -22,7 +23,15 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
-function TripCover({ trip, onDelete }: { trip: Trip; onDelete: (trip: Trip) => void }) {
+function TripCover({
+  trip,
+  onDelete,
+  onClipboard,
+}: {
+  trip: Trip
+  onDelete: (trip: Trip) => void
+  onClipboard: (trip: Trip) => void
+}) {
   const coverImageSrc = trip.coverImage.trim()
   const statusColor =
     trip.status === 'traveling'
@@ -68,6 +77,21 @@ function TripCover({ trip, onDelete }: { trip: Trip; onDelete: (trip: Trip) => v
       <Button
         type="button"
         size="icon"
+        variant="secondary"
+        className="absolute left-2 top-2 z-10 h-8 w-8 rounded-full bg-background/70 shadow-md backdrop-blur-sm"
+        onClick={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          onClipboard(trip)
+        }}
+        aria-label={`${trip.title}のJSONを編集`}
+      >
+        <Clipboard className="size-4" />
+      </Button>
+
+      <Button
+        type="button"
+        size="icon"
         variant="destructive"
         className="absolute right-2 top-2 z-10 h-8 w-8 rounded-full shadow-md"
         onClick={(event) => {
@@ -88,6 +112,7 @@ export default function BookshelfPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteTargetTrip, setDeleteTargetTrip] = useState<Trip | null>(null)
+  const [clipboardTargetTrip, setClipboardTargetTrip] = useState<Trip | null>(null)
   const isPagesPrPreview = process.env.NEXT_PUBLIC_GITHUB_PAGES_PR_PREVIEW === '1'
 
   const planningTrips = trips.filter((t) => t.status !== 'archived')
@@ -213,7 +238,7 @@ export default function BookshelfPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               {planningTrips.map((trip) => (
-                <TripCover key={trip.id} trip={trip} onDelete={handleDeleteTrip} />
+                <TripCover key={trip.id} trip={trip} onDelete={handleDeleteTrip} onClipboard={setClipboardTargetTrip} />
               ))}
             </div>
           </section>
@@ -232,7 +257,7 @@ export default function BookshelfPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               {archivedTrips.map((trip) => (
-                <TripCover key={trip.id} trip={trip} onDelete={handleDeleteTrip} />
+                <TripCover key={trip.id} trip={trip} onDelete={handleDeleteTrip} onClipboard={setClipboardTargetTrip} />
               ))}
             </div>
           </section>
@@ -267,6 +292,15 @@ export default function BookshelfPage() {
       </button>
 
       {!isPagesPrPreview && <NewTripDialog open={dialogOpen} onOpenChange={setDialogOpen} />}
+      {clipboardTargetTrip && (
+        <TripClipboardDialog
+          trip={clipboardTargetTrip}
+          open={clipboardTargetTrip !== null}
+          onOpenChange={(open) => {
+            if (!open) setClipboardTargetTrip(null)
+          }}
+        />
+      )}
       <AlertDialog
         open={deleteTargetTrip !== null}
         onOpenChange={(open) => {

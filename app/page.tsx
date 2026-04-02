@@ -1,16 +1,15 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useTripContext } from '@/lib/trip-context'
 import type { Trip } from '@/lib/types'
 import { STATUS_LABELS } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
-import { Archive, Clipboard, Download, MapPinned, Plus, Sparkles, Trash2, Upload } from 'lucide-react'
+import { Archive, Clipboard, MapPinned, Plus, Sparkles, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { NewTripDialog } from '@/components/bookshelf/new-trip-dialog'
 import { TripClipboardDialog } from '@/components/bookshelf/trip-clipboard-dialog'
 import { Button } from '@/components/ui/button'
-import { parseTripsFromJson, stringifyTrips } from '@/lib/trip-json'
 import { buildTripPageHref } from '@/lib/trip-route'
 import {
   AlertDialog,
@@ -108,8 +107,7 @@ function TripCover({
 }
 
 export default function BookshelfPage() {
-  const { trips, appendTrips, deleteTrip } = useTripContext()
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const { trips, deleteTrip } = useTripContext()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteTargetTrip, setDeleteTargetTrip] = useState<Trip | null>(null)
   const [clipboardTargetTrip, setClipboardTargetTrip] = useState<Trip | null>(null)
@@ -134,57 +132,6 @@ export default function BookshelfPage() {
           <div className="space-y-0.5">
             <h1 className="font-serif text-xl font-bold text-foreground">たびログ</h1>
             <p className="text-xs text-muted-foreground">My Travel Bookshelf</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/json"
-              className="hidden"
-              onChange={async (event) => {
-                const file = event.target.files?.[0]
-                if (!file) return
-                try {
-                  const text = await file.text()
-                  const importedTrips = parseTripsFromJson(text)
-                  appendTrips(importedTrips)
-                  window.alert(`JSONをインポートしました（${importedTrips.length}件を追加）。`)
-                } catch (error) {
-                  console.error(error)
-                  window.alert('JSONのインポートに失敗しました。形式を確認してください。')
-                } finally {
-                  event.target.value = ''
-                }
-              }}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              className="h-8 rounded-full border-border/70 bg-card/70 px-2.5"
-            >
-              <Upload className="mr-1 size-3.5" />
-              取込
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const allTripsJson = stringifyTrips(trips)
-                const blob = new Blob([allTripsJson], { type: 'application/json' })
-                const url = URL.createObjectURL(blob)
-                const link = document.createElement('a')
-                const date = new Date().toISOString().slice(0, 10)
-                link.href = url
-                link.download = `travel-plans-${date}.json`
-                link.click()
-                URL.revokeObjectURL(url)
-              }}
-              className="h-8 rounded-full border-border/70 bg-card/70 px-2.5"
-            >
-              <Download className="mr-1 size-3.5" />
-              全件保存
-            </Button>
           </div>
         </div>
       </header>

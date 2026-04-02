@@ -13,7 +13,7 @@ import { buildMovePathPoints } from '@/lib/move-path'
 import { resolveTripIdFromSearch } from '@/lib/trip-id'
 import { buildTripPageHref } from '@/lib/trip-route'
 import { BottomNav } from '@/components/shared/bottom-nav'
-import { ArrowLeft, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Clock, ChevronLeft, ChevronRight, LocateFixed } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -88,7 +88,10 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
   const isMobile = useIsMobile()
   const [activeIndex, setActiveIndex] = useState(0)
   const [currentDateTime, setCurrentDateTime] = useState(() => new Date())
+  const [isLocationMode, setIsLocationMode] = useState(false)
+  const [currentLatLng, setCurrentLatLng] = useState<{ lat: number; lng: number } | null>(null)
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null)
+  const watchIdRef = useRef<number | null>(null)
 
   useEffect(() => {
     setTripId(resolveTripIdFromSearch(id, window.location.search))
@@ -102,6 +105,43 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
     return () => {
       window.clearInterval(timer)
     }
+  }, [])
+
+  // Geolocation watch for location mode
+  useEffect(() => {
+    if (!isLocationMode) {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+      return
+    }
+
+    if (!navigator.geolocation) {
+      setIsLocationMode(false)
+      return
+    }
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        setCurrentLatLng({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+      },
+      () => {
+        setIsLocationMode(false)
+      },
+      { enableHighAccuracy: true, maximumAge: 4000, timeout: 10000 }
+    )
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+    }
+  }, [isLocationMode])
+
+  const toggleLocationMode = useCallback(() => {
+    setIsLocationMode((prev) => !prev)
   }, [])
 
   const trip = getTrip(tripId)
@@ -209,14 +249,19 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
   const handleMarkerClick = useCallback(
     (spotId: string) => {
       const idx = allSpots.findIndex((s) => s.id === spotId)
-      if (idx !== -1) setActiveIndex(idx)
+      if (idx !== -1) {
+        setIsLocationMode(false)
+        setActiveIndex(idx)
+      }
     },
     [allSpots]
   )
   const goPrev = useCallback(() => {
+    setIsLocationMode(false)
     setActiveIndex((current) => Math.max(0, current - 1))
   }, [])
   const goNext = useCallback(() => {
+    setIsLocationMode(false)
     setActiveIndex((current) => Math.min(Math.max(0, allSpots.length - 1), current + 1))
   }, [allSpots.length])
   const handleCardTouchStart = useCallback(
@@ -305,9 +350,24 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
           onMarkerClick={handleMarkerClick}
           onPrevClick={goPrev}
           onNextClick={goNext}
+          userLocation={currentLatLng}
+          isFollowingLocation={isLocationMode}
         />
+        {/* Top info panel — tapping toggles location mode */}
         <div className="pointer-events-none absolute top-3 left-1/2 z-[1000] -translate-x-1/2">
-          <div className="w-[min(92vw,34rem)] rounded-2xl border border-white/50 bg-gradient-to-r from-card/95 via-card/90 to-card/95 px-3 py-2 shadow-lg backdrop-blur-md">
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={isLocationMode ? '現在地モードを解除' : '現在地モードを開始'}
+            onClick={toggleLocationMode}
+            onKeyDown={(e) => e.key === 'Enter' && toggleLocationMode()}
+            className={cn(
+              'pointer-events-auto w-[min(92vw,34rem)] cursor-pointer select-none rounded-2xl border bg-gradient-to-r from-card/95 via-card/90 to-card/95 px-3 py-2 shadow-lg backdrop-blur-md transition-all',
+              isLocationMode
+                ? 'border-blue-400/80 ring-1 ring-blue-400/40'
+                : 'border-white/50'
+            )}
+          >
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold tracking-[0.18em] text-muted-foreground">現在日時</p>
@@ -315,6 +375,11 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
                 <p className="font-mono text-lg font-bold leading-none text-foreground">
                   {formatCurrentTime(currentDateTime)}
                 </p>
+                {isLocationMode && (
+                  <p className="mt-0.5 text-[10px] font-semibold text-blue-500">
+                    ● 現在地追跡中
+                  </p>
+                )}
               </div>
               <div className="max-w-[58%] min-w-0 space-y-1.5 text-right">
                 <div className="rounded-lg bg-muted/65 px-2 py-1">
@@ -328,7 +393,12 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
                     </p>
                   )}
                 </div>
-                <div className="rounded-lg bg-muted/65 px-2 py-1">
+                <div
+                  className={cn(
+                    'rounded-lg px-2 py-1',
+                    isLocationMode ? 'bg-blue-500/15' : 'bg-muted/65'
+                  )}
+                >
                   <p className="text-[10px] font-semibold text-muted-foreground">移動</p>
                   {nowBasedInfo.activeMove ? (
                     <>
@@ -345,6 +415,20 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
             </div>
           </div>
         </div>
+        {/* Current location button */}
+        <button
+          type="button"
+          onClick={toggleLocationMode}
+          aria-label={isLocationMode ? '現在地モードを解除' : '現在地を表示'}
+          className={cn(
+            'absolute bottom-4 right-4 z-[1000] flex h-11 w-11 items-center justify-center rounded-full shadow-lg transition-all',
+            isLocationMode
+              ? 'bg-blue-500 text-white shadow-blue-500/40'
+              : 'bg-card/90 text-foreground backdrop-blur-sm hover:bg-card'
+          )}
+        >
+          <LocateFixed className="size-5" />
+        </button>
       </div>
 
       {/* Spot Card */}
@@ -387,7 +471,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
               return (
                 <button
                   key={spot.id}
-                  onClick={() => setActiveIndex(idx)}
+                  onClick={() => { setIsLocationMode(false); setActiveIndex(idx) }}
                   className={cn(
                     'h-1.5 rounded-full transition-all',
                     isActive

@@ -348,3 +348,46 @@
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* Current location marker */
+.location-dot {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.location-dot__pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  background: rgb(59 130 246 / 0.55);
+  border-radius: 50%;
+  animation: location-pulse 2s ease-out infinite;
+}
+
+.location-dot__inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  background: #3b82f6;
+  border: 2.5px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+}
+
+@keyframes location-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.6);
+    opacity: 0;
+  }
+}

@@ -140,10 +140,6 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
     }
   }, [isLocationMode])
 
-  const toggleLocationMode = useCallback(() => {
-    setIsLocationMode((prev) => !prev)
-  }, [])
-
   const trip = getTrip(tripId)
 
   const timelineNodes = useMemo(() => (trip ? getTripTimelineNodes(trip) : []), [trip])
@@ -215,6 +211,25 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
   }, [timelineNodes])
 
   const allSpots = useMemo(() => spotEntries.map((entry) => entry.spot), [spotEntries])
+
+  const toggleLocationMode = useCallback(() => {
+    // When enabling location mode, focus the spot whose start time is just before now
+    if (!isLocationMode && trip && allSpots.length > 0) {
+      const nowTs = Date.now()
+      let targetIndex = 0
+      for (let i = 0; i < allSpots.length; i++) {
+        const spot = allSpots[i]
+        const startAt = createTripDateTime(trip.startDate, spot.day, spot.time)
+        if (startAt.getTime() <= nowTs) {
+          targetIndex = i
+        } else {
+          break
+        }
+      }
+      setActiveIndex(targetIndex)
+    }
+    setIsLocationMode((prev) => !prev)
+  }, [isLocationMode, trip, allSpots])
 
   const nowBasedInfo = useMemo(() => {
     if (!trip || timelineNodes.length === 0) {

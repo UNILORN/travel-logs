@@ -90,6 +90,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
   const [currentDateTime, setCurrentDateTime] = useState(() => new Date())
   const [isLocationMode, setIsLocationMode] = useState(false)
   const [currentLatLng, setCurrentLatLng] = useState<{ lat: number; lng: number } | null>(null)
+  const [currentSpeedKmh, setCurrentSpeedKmh] = useState<number | null>(null)
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const watchIdRef = useRef<number | null>(null)
 
@@ -114,6 +115,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
         navigator.geolocation.clearWatch(watchIdRef.current)
         watchIdRef.current = null
       }
+      setCurrentSpeedKmh(null)
       return
     }
 
@@ -125,6 +127,8 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
         setCurrentLatLng({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        const spd = pos.coords.speed
+        setCurrentSpeedKmh(spd !== null && spd >= 0 ? spd * 3.6 : null)
       },
       () => {
         setIsLocationMode(false)
@@ -430,6 +434,19 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
             </div>
           </div>
         </div>
+        {/* Digital speedometer — shown only in location mode */}
+        {isLocationMode && (
+          <div className="absolute bottom-4 left-4 z-[1000] select-none">
+            <div className="flex flex-col items-end rounded-xl bg-black/75 px-3 py-2 shadow-lg backdrop-blur-sm ring-1 ring-blue-400/30">
+              <span className="font-mono text-2xl font-bold leading-none tracking-tight text-[#00e5ff] [text-shadow:0_0_8px_rgba(0,229,255,0.6)]">
+                {currentSpeedKmh !== null ? Math.round(currentSpeedKmh).toString().padStart(3, '\u2007') : '\u2007\u2007\u2014'}
+              </span>
+              <span className="mt-0.5 text-[9px] font-semibold tracking-widest text-[#00e5ff]/60">
+                km/h
+              </span>
+            </div>
+          </div>
+        )}
         {/* Current location button */}
         <button
           type="button"

@@ -90,7 +90,7 @@ export function TripClipboardDialog({ trip, open, onOpenChange }: TripClipboardD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90dvh] w-[calc(100vw-2rem)] max-w-lg flex-col gap-3 p-4">
+      <DialogContent className="flex max-h-[90dvh] w-[calc(100vw-1rem)] max-w-lg flex-col gap-3 px-3 py-4">
         <DialogHeader className="space-y-0.5">
           <DialogTitle className="text-base leading-snug">{trip.title}</DialogTitle>
           <DialogDescription className="text-xs">
@@ -107,7 +107,7 @@ export function TripClipboardDialog({ trip, open, onOpenChange }: TripClipboardD
             setSuccess(false)
           }}
           className="min-h-0 flex-1 resize-none rounded-lg border border-border bg-muted/40 p-3 font-mono text-[11px] leading-relaxed text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          style={{ height: 'min(55dvh, 360px)' }}
+          style={{ height: 'min(60dvh, 400px)' }}
           spellCheck={false}
           autoComplete="off"
           aria-label="旅程JSON"

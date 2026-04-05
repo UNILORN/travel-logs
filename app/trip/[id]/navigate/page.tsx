@@ -151,7 +151,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
       () => {
         setIsLocationMode(false)
       },
-      { enableHighAccuracy: true, maximumAge: 4000, timeout: 10000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     )
 
     return () => {

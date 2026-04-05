@@ -13,7 +13,7 @@ import { buildMovePathPoints } from '@/lib/move-path'
 import { resolveTripIdFromSearch } from '@/lib/trip-id'
 import { buildTripPageHref } from '@/lib/trip-route'
 import { BottomNav } from '@/components/shared/bottom-nav'
-import { ArrowLeft, Clock, ChevronLeft, ChevronRight, LocateFixed } from 'lucide-react'
+import { ArrowLeft, Clock, ChevronLeft, ChevronRight, LocateFixed, Mountain, Navigation2, Target } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -51,6 +51,12 @@ function createTripDateTime(baseDate: string, day: number, time: string) {
 
 function formatNodeTimeLabel(time: string, endTime: string) {
   return `${time} - ${endTime}`
+}
+
+const CARDINAL_DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+function formatHeading(degrees: number): string {
+  const idx = Math.round(degrees / 45) % 8
+  return `${CARDINAL_DIRECTIONS[idx]} ${Math.round(degrees)}°`
 }
 
 function MoveDirectionBadge({
@@ -91,6 +97,10 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
   const [isLocationMode, setIsLocationMode] = useState(false)
   const [currentLatLng, setCurrentLatLng] = useState<{ lat: number; lng: number } | null>(null)
   const [currentSpeedKmh, setCurrentSpeedKmh] = useState<number | null>(null)
+  const [currentAltitude, setCurrentAltitude] = useState<number | null>(null)
+  const [currentHeading, setCurrentHeading] = useState<number | null>(null)
+  const [currentAccuracy, setCurrentAccuracy] = useState<number | null>(null)
+  const [showGpsInfo, setShowGpsInfo] = useState(false)
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const watchIdRef = useRef<number | null>(null)
 
@@ -116,6 +126,10 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
         watchIdRef.current = null
       }
       setCurrentSpeedKmh(null)
+      setCurrentAltitude(null)
+      setCurrentHeading(null)
+      setCurrentAccuracy(null)
+      setShowGpsInfo(false)
       return
     }
 
@@ -129,6 +143,10 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
         setCurrentLatLng({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         const spd = pos.coords.speed
         setCurrentSpeedKmh(spd !== null && spd >= 0 ? spd * 3.6 : null)
+        setCurrentAltitude(pos.coords.altitude)
+        const hdg = pos.coords.heading
+        setCurrentHeading(hdg !== null && !isNaN(hdg) ? hdg : null)
+        setCurrentAccuracy(pos.coords.accuracy)
       },
       () => {
         setIsLocationMode(false)
@@ -437,14 +455,57 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
         {/* Digital speedometer — shown only in location mode */}
         {isLocationMode && (
           <div className="absolute bottom-4 left-4 z-[1000] select-none">
-            <div className="flex flex-col items-end rounded-xl bg-black/75 px-3 py-2 shadow-lg backdrop-blur-sm ring-1 ring-blue-400/30">
+            <button
+              type="button"
+              onClick={() => setShowGpsInfo((prev) => !prev)}
+              aria-label={showGpsInfo ? 'GPS情報を隠す' : 'GPS情報を表示'}
+              className={cn(
+                'flex flex-col items-end rounded-xl bg-black/75 px-3 py-2 shadow-lg backdrop-blur-sm transition-all',
+                showGpsInfo
+                  ? 'ring-1 ring-[#00e5ff]/60'
+                  : 'ring-1 ring-blue-400/30 hover:ring-blue-400/50'
+              )}
+            >
+              {/* GPS info panel (expanded) */}
+              {showGpsInfo && (
+                <div className="mb-2 w-full min-w-[9rem] space-y-1.5 border-b border-[#00e5ff]/20 pb-2">
+                  {/* Altitude */}
+                  <div className="flex items-center gap-1.5">
+                    <Mountain className="size-3 shrink-0 text-[#00e5ff]/50" />
+                    <span className="w-7 text-[9px] font-semibold text-[#00e5ff]/50">高度</span>
+                    <span className="ml-auto font-mono text-[11px] font-bold text-[#00e5ff]">
+                      {currentAltitude !== null ? `${Math.round(currentAltitude)} m` : '—'}
+                    </span>
+                  </div>
+                  {/* Heading */}
+                  <div className="flex items-center gap-1.5">
+                    <Navigation2
+                      className="size-3 shrink-0 text-[#00e5ff]/50"
+                      style={currentHeading !== null ? { transform: `rotate(${currentHeading}deg)` } : undefined}
+                    />
+                    <span className="w-7 text-[9px] font-semibold text-[#00e5ff]/50">方位</span>
+                    <span className="ml-auto font-mono text-[11px] font-bold text-[#00e5ff]">
+                      {currentHeading !== null ? formatHeading(currentHeading) : '—'}
+                    </span>
+                  </div>
+                  {/* Accuracy */}
+                  <div className="flex items-center gap-1.5">
+                    <Target className="size-3 shrink-0 text-[#00e5ff]/50" />
+                    <span className="w-7 text-[9px] font-semibold text-[#00e5ff]/50">誤差</span>
+                    <span className="ml-auto font-mono text-[11px] font-bold text-[#00e5ff]">
+                      {currentAccuracy !== null ? `±${Math.round(currentAccuracy)} m` : '—'}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {/* Speed value */}
               <span className="font-mono text-2xl font-bold leading-none tracking-tight text-[#00e5ff] [text-shadow:0_0_8px_rgba(0,229,255,0.6)]">
                 {currentSpeedKmh !== null ? Math.round(currentSpeedKmh).toString().padStart(3, '\u2007') : '\u2007\u2007\u2014'}
               </span>
               <span className="mt-0.5 text-[9px] font-semibold tracking-widest text-[#00e5ff]/60">
                 km/h
               </span>
-            </div>
+            </button>
           </div>
         )}
         {/* Current location button */}

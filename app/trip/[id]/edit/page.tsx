@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useEffect, useMemo, useState } from 'react'
-import type { MoveNode, Spot } from '@/lib/types'
+import type { AreaNode, MoveNode, Spot } from '@/lib/types'
 import { ItineraryHeader } from '@/components/itinerary/itinerary-header'
 import type { TimelineInsertDraft } from '@/components/itinerary/timeline'
 import { Timeline } from '@/components/itinerary/timeline'
@@ -21,6 +21,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
   const [timelineMode, setTimelineMode] = useState<'view' | 'edit'>('view')
   const [editingSpot, setEditingSpot] = useState<Spot | null>(null)
   const [editingMove, setEditingMove] = useState<MoveNode | null>(null)
+  const [editingArea, setEditingArea] = useState<AreaNode | null>(null)
   const [activeDay, setActiveDay] = useState(1)
   const isDesktop = useIsDesktop()
 
@@ -75,13 +76,14 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
 
   const isEditMode = timelineMode === 'edit'
   const showSidebar = isDesktop && isEditMode && addSpotOpen
-  // 移動ノード編集時はサイドバーを広げてマップを使いやすくする
-  const isMoveSidebar = showSidebar && (editingMove !== null || draft.type === 'move')
+  // 移動・エリア編集時はサイドバーを広げてマップを使いやすくする
+  const isMoveSidebar = showSidebar && (editingMove !== null || editingArea !== null || draft.type === 'move' || draft.type === 'area')
 
   const handleOpenAddNode = (nextDraft: TimelineInsertDraft) => {
     if (!isEditMode) return
     setEditingSpot(null)
     setEditingMove(null)
+    setEditingArea(null)
     setDraft(nextDraft)
     setAddSpotOpen(true)
   }
@@ -90,6 +92,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
     if (!isEditMode) return
     setEditingSpot(spot)
     setEditingMove(null)
+    setEditingArea(null)
     setDraft({ day: spot.day, time: spot.time, endTime: spot.endTime, type: 'spot' })
     setAddSpotOpen(true)
   }
@@ -98,7 +101,17 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
     if (!isEditMode) return
     setEditingSpot(null)
     setEditingMove(node)
+    setEditingArea(null)
     setDraft({ day: node.day, time: node.time, endTime: node.endTime, type: 'move' })
+    setAddSpotOpen(true)
+  }
+
+  const handleOpenEditArea = (node: AreaNode) => {
+    if (!isEditMode) return
+    setEditingSpot(null)
+    setEditingMove(null)
+    setEditingArea(node)
+    setDraft({ day: node.day, time: node.time, endTime: node.endTime, type: 'area' })
     setAddSpotOpen(true)
   }
 
@@ -152,6 +165,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
                 setAddSpotOpen(false)
                 setEditingSpot(null)
                 setEditingMove(null)
+                setEditingArea(null)
               }}
               aria-pressed={timelineMode === 'view'}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -183,6 +197,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
           onAddNode={handleOpenAddNode}
           onEditSpot={handleOpenEditSpot}
           onEditMove={handleOpenEditMove}
+          onEditArea={handleOpenEditArea}
           columns={isDesktop ? 3 : 1}
         />
       </main>
@@ -192,6 +207,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
           onClick={() => {
             setEditingSpot(null)
             setEditingMove(null)
+            setEditingArea(null)
             setDraft({ day: 1, type: 'spot' })
             setAddSpotOpen(true)
           }}
@@ -221,6 +237,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
             if (!open) {
               setEditingSpot(null)
               setEditingMove(null)
+              setEditingArea(null)
             }
           }}
           defaultDay={draft.day}
@@ -229,6 +246,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
           defaultNodeType={draft.type}
           editingSpot={editingSpot}
           editingMove={editingMove}
+          editingArea={editingArea}
         />
       </div>
 
@@ -242,6 +260,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
             if (!open) {
               setEditingSpot(null)
               setEditingMove(null)
+              setEditingArea(null)
             }
           }}
           defaultDay={draft.day}
@@ -250,6 +269,7 @@ export default function EditPage({ params }: { params: Promise<{ id: string }> }
           defaultNodeType={draft.type}
           editingSpot={editingSpot}
           editingMove={editingMove}
+          editingArea={editingArea}
         />
       )}
 

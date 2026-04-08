@@ -2,18 +2,18 @@
 
 import { use, useState, useEffect, useCallback, useMemo, useRef, type TouchEvent } from 'react'
 import dynamic from 'next/dynamic'
-import type { NavigateMapEntry, NavigateRouteSegment } from '@/components/navigation/types'
+import type { NavigateAreaEntry, NavigateEntry, NavigateMoveEntry, NavigateRouteSegment, NavigateSpotEntry } from '@/components/navigation/types'
 import { formatDistanceKm, hasVisibleMove } from '@/components/navigation/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useTripContext } from '@/lib/trip-context'
 import { TRANSPORT_LABELS } from '@/lib/types'
-import type { MoveNode } from '@/lib/types'
+import type { MoveNode, SpotNode } from '@/lib/types'
 import { getTripTimelineNodes, isAreaNode, isMoveNode, isSpotNode } from '@/lib/timeline-nodes'
 import { buildMovePathPoints } from '@/lib/move-path'
 import { resolveTripIdFromSearch } from '@/lib/trip-id'
 import { buildTripPageHref } from '@/lib/trip-route'
 import { BottomNav } from '@/components/shared/bottom-nav'
-import { ArrowLeft, Clock, ChevronLeft, ChevronRight, LocateFixed, Mountain, Navigation2, Target } from 'lucide-react'
+import { ArrowLeft, Clock, ChevronLeft, ChevronRight, LocateFixed, Map, Mountain, Navigation2, Route, Target } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -84,6 +84,139 @@ function MoveDirectionBadge({
         </span>
       </span>
     </span>
+  )
+}
+
+/** Bottom card content for a spot entry */
+function SpotCard({ entry }: { entry: NavigateSpotEntry }) {
+  const { node, prevMove, nextMove } = entry
+  return (
+    <div className="flex min-h-[7.75rem] gap-3">
+      {node.image && (
+        <img
+          src={node.image}
+          alt={node.name}
+          className="h-16 w-20 shrink-0 rounded-lg object-cover"
+          crossOrigin="anonymous"
+        />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+            Day {node.day}
+          </span>
+          <Clock className="size-3" />
+          <span>{node.time} - {node.endTime}</span>
+        </div>
+        <h3 className="mt-1 truncate font-serif text-base font-bold text-foreground">
+          {node.name}
+        </h3>
+        <div className="mt-0.5 min-h-[1rem]">
+          {node.notes && (
+            <p className="text-xs text-muted-foreground line-clamp-1">{node.notes}</p>
+          )}
+        </div>
+        <div className="mt-2 h-[5.75rem] overflow-hidden">
+          {(hasVisibleMove(prevMove) || hasVisibleMove(nextMove)) && (
+            <div className="flex h-full flex-wrap content-start gap-1">
+              {hasVisibleMove(prevMove) && (
+                <MoveDirectionBadge
+                  move={prevMove}
+                  directionLabel="← Prev"
+                  accentClassName="text-primary"
+                />
+              )}
+              {hasVisibleMove(nextMove) && (
+                <MoveDirectionBadge
+                  move={nextMove}
+                  directionLabel="Next →"
+                  accentClassName="text-[var(--chart-3)]"
+                  titleClassName="text-[10px]"
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Bottom card content for a move entry */
+function MoveCard({ entry }: { entry: NavigateMoveEntry }) {
+  const { node, fromSpot, toSpot } = entry
+  return (
+    <div className="flex min-h-[7.75rem] gap-3">
+      {node.image && (
+        <img
+          src={node.image}
+          alt={node.name}
+          className="h-16 w-20 shrink-0 rounded-lg object-cover"
+          crossOrigin="anonymous"
+        />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+            移動 · Day {node.day}
+          </span>
+          <Clock className="size-3" />
+          <span>{node.time} - {node.endTime}</span>
+        </div>
+        <h3 className="mt-1 truncate font-serif text-base font-bold text-foreground">
+          {node.name}
+        </h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {TRANSPORT_LABELS[node.transport]}{node.distance > 0 ? ` · ${formatDistanceKm(node.distance)}` : ''}
+        </p>
+        {(fromSpot ?? toSpot) && (
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {fromSpot ? fromSpot.name : '?'} → {toSpot ? toSpot.name : '?'}
+          </p>
+        )}
+        {node.notes && (
+          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{node.notes}</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Bottom card content for an area entry */
+function AreaCard({ entry }: { entry: NavigateAreaEntry }) {
+  const { node } = entry
+  return (
+    <div className="flex min-h-[7.75rem] gap-3">
+      <div className="flex h-16 w-20 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
+        <Map className="size-6 text-emerald-600" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+            エリア · Day {node.day}
+          </span>
+          <Clock className="size-3" />
+          <span>{node.time} - {node.endTime}</span>
+        </div>
+        <h3 className="mt-1 truncate font-serif text-base font-bold text-foreground">
+          {node.name}
+        </h3>
+        {node.spotNames.length > 0 && (
+          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
+            {node.spotNames.join(' · ')}
+          </p>
+        )}
+        {node.polygon && node.polygon.length >= 3 && (
+          <p className="mt-0.5 text-[10px] text-emerald-600">
+            <Route className="mr-0.5 inline size-3" />
+            {node.polygon.length}頂点のポリゴン
+          </p>
+        )}
+        {node.notes && (
+          <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{node.notes}</p>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -163,79 +296,90 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
   }, [isLocationMode])
 
   const trip = getTrip(tripId)
-
   const timelineNodes = useMemo(() => (trip ? getTripTimelineNodes(trip) : []), [trip])
 
-  const spotEntries = useMemo(() => {
-    if (!trip) return [] as NavigateMapEntry[]
-
-    const entries: NavigateMapEntry[] = []
+  // Build unified entries for ALL timeline node types
+  const allEntries = useMemo((): NavigateEntry[] => {
+    if (!trip) return []
+    const entries: NavigateEntry[] = []
+    let spotSequence = 0
 
     timelineNodes.forEach((node, index) => {
-      if (!isSpotNode(node)) return
-      const prevNode = timelineNodes[index - 1]
-      const nextNode = timelineNodes[index + 1]
-      const prevMove = prevNode && isMoveNode(prevNode) ? prevNode : undefined
-      const nextMove = nextNode && isMoveNode(nextNode) ? nextNode : undefined
-      const prevArea = prevNode && isAreaNode(prevNode) ? prevNode : undefined
-      const nextArea = nextNode && isAreaNode(nextNode) ? nextNode : undefined
-
-      entries.push({
-        spot: node,
-        prevMove,
-        nextMove,
-        prevArea,
-        nextArea,
-        sequence: entries.length + 1,
-      })
+      if (isSpotNode(node)) {
+        spotSequence++
+        const prevNode = timelineNodes[index - 1]
+        const nextNode = timelineNodes[index + 1]
+        entries.push({
+          type: 'spot',
+          id: node.id,
+          node,
+          prevMove: prevNode && isMoveNode(prevNode) ? prevNode : undefined,
+          nextMove: nextNode && isMoveNode(nextNode) ? nextNode : undefined,
+          prevArea: prevNode && isAreaNode(prevNode) ? prevNode : undefined,
+          nextArea: nextNode && isAreaNode(nextNode) ? nextNode : undefined,
+          sequence: spotSequence,
+        })
+      } else if (isMoveNode(node)) {
+        const fromSpot = (() => {
+          for (let i = index - 1; i >= 0; i--) {
+            const candidate = timelineNodes[i]
+            if (isSpotNode(candidate)) return candidate as SpotNode
+          }
+          return undefined
+        })()
+        const toSpot = (() => {
+          for (let i = index + 1; i < timelineNodes.length; i++) {
+            const candidate = timelineNodes[i]
+            if (isSpotNode(candidate)) return candidate as SpotNode
+          }
+          return undefined
+        })()
+        const routePoints = buildMovePathPoints(node, {
+          from: fromSpot ? { lat: fromSpot.lat, lng: fromSpot.lng } : undefined,
+          to: toSpot ? { lat: toSpot.lat, lng: toSpot.lng } : undefined,
+        })
+        entries.push({
+          type: 'move',
+          id: node.id,
+          node,
+          fromSpot,
+          toSpot,
+          routePoints,
+        })
+      } else if (isAreaNode(node)) {
+        entries.push({
+          type: 'area',
+          id: node.id,
+          node,
+        })
+      }
     })
 
     return entries
   }, [timelineNodes, trip])
 
-  const routeSegments = useMemo(() => {
-    const segments: NavigateRouteSegment[] = []
+  const spotEntries = useMemo(
+    () => allEntries.filter((e): e is NavigateSpotEntry => e.type === 'spot'),
+    [allEntries]
+  )
 
-    timelineNodes.forEach((node, index) => {
-      if (!isMoveNode(node)) return
+  const areaEntries = useMemo(
+    () => allEntries.filter((e): e is NavigateAreaEntry => e.type === 'area'),
+    [allEntries]
+  )
 
-      const fromSpot = (() => {
-        for (let i = index - 1; i >= 0; i -= 1) {
-          const candidate = timelineNodes[i]
-          if (isSpotNode(candidate)) return candidate
-        }
-        return undefined
-      })()
+  const routeSegments = useMemo((): NavigateRouteSegment[] =>
+    allEntries
+      .filter((e): e is NavigateMoveEntry => e.type === 'move')
+      .filter((e) => e.routePoints.length >= 2)
+      .map((e) => ({ id: e.id, move: e.node, points: e.routePoints })),
+    [allEntries]
+  )
 
-      const toSpot = (() => {
-        for (let i = index + 1; i < timelineNodes.length; i += 1) {
-          const candidate = timelineNodes[i]
-          if (isSpotNode(candidate)) return candidate
-        }
-        return undefined
-      })()
-
-      const points = buildMovePathPoints(node, {
-        from: fromSpot ? { lat: fromSpot.lat, lng: fromSpot.lng } : undefined,
-        to: toSpot ? { lat: toSpot.lat, lng: toSpot.lng } : undefined,
-      })
-
-      if (points.length < 2) return
-
-      segments.push({
-        id: node.id,
-        move: node,
-        points,
-      })
-    })
-
-    return segments
-  }, [timelineNodes])
-
-  const allSpots = useMemo(() => spotEntries.map((entry) => entry.spot), [spotEntries])
+  // For "now-based" info, we still just look at spots and moves
+  const allSpots = useMemo(() => spotEntries.map((e) => e.node), [spotEntries])
 
   const toggleLocationMode = useCallback(() => {
-    // When enabling location mode, focus the spot whose start time is just before now
     if (!isLocationMode && trip && allSpots.length > 0) {
       const nowTs = Date.now()
       let targetIndex = 0
@@ -243,7 +387,9 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
         const spot = allSpots[i]
         const startAt = createTripDateTime(trip.startDate, spot.day, spot.time)
         if (startAt.getTime() <= nowTs) {
-          targetIndex = i
+          // find the matching allEntries index for this spot
+          const entryIdx = allEntries.findIndex((e) => e.id === spot.id)
+          if (entryIdx !== -1) targetIndex = entryIdx
         } else {
           break
         }
@@ -251,7 +397,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
       setActiveIndex(targetIndex)
     }
     setIsLocationMode((prev) => !prev)
-  }, [isLocationMode, trip, allSpots])
+  }, [isLocationMode, trip, allSpots, allEntries])
 
   const nowBasedInfo = useMemo(() => {
     if (!trip || timelineNodes.length === 0) {
@@ -283,28 +429,44 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
     return { nextSpot, activeMove }
   }, [currentDateTime, timelineNodes, trip])
 
+  // Marker click: find the entry in allEntries and jump to it
   const handleMarkerClick = useCallback(
     (spotId: string) => {
-      const idx = allSpots.findIndex((s) => s.id === spotId)
+      const idx = allEntries.findIndex((e) => e.id === spotId)
       if (idx !== -1) {
         setIsLocationMode(false)
         setActiveIndex(idx)
       }
     },
-    [allSpots]
+    [allEntries]
   )
+
   const goPrev = useCallback(() => {
     setIsLocationMode(false)
     setActiveIndex((current) => Math.max(0, current - 1))
   }, [])
+
   const goNext = useCallback(() => {
     setIsLocationMode(false)
-    setActiveIndex((current) => Math.min(Math.max(0, allSpots.length - 1), current + 1))
-  }, [allSpots.length])
+    setActiveIndex((current) => Math.min(Math.max(0, allEntries.length - 1), current + 1))
+  }, [allEntries.length])
+
+  // Keyboard arrow key navigation (PC)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        goPrev()
+      } else if (e.key === 'ArrowRight') {
+        goNext()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [goPrev, goNext])
+
   const handleCardTouchStart = useCallback(
     (event: TouchEvent<HTMLDivElement>) => {
       if (!isMobile || event.touches.length !== 1) return
-
       const touch = event.touches[0]
       swipeStartRef.current = { x: touch.clientX, y: touch.clientY }
     },
@@ -313,7 +475,6 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
   const handleCardTouchEnd = useCallback(
     (event: TouchEvent<HTMLDivElement>) => {
       if (!isMobile || !swipeStartRef.current || event.changedTouches.length !== 1) return
-
       const touch = event.changedTouches[0]
       const deltaX = touch.clientX - swipeStartRef.current.x
       const deltaY = touch.clientY - swipeStartRef.current.y
@@ -330,7 +491,6 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
         goNext()
         return
       }
-
       goPrev()
     },
     [goNext, goPrev, isMobile]
@@ -347,7 +507,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
     )
   }
 
-  if (allSpots.length === 0) {
+  if (allEntries.length === 0) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background pb-16">
         <p className="text-muted-foreground">スポットがまだありません</p>
@@ -359,11 +519,8 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
     )
   }
 
-  const safeActiveIndex = Math.min(activeIndex, allSpots.length - 1)
-  const activeSpot = allSpots[safeActiveIndex]
-  const activeSpotEntry = spotEntries[safeActiveIndex]
-  const prevMove = activeSpotEntry?.prevMove
-  const nextMove = activeSpotEntry?.nextMove
+  const safeActiveIndex = Math.min(activeIndex, allEntries.length - 1)
+  const activeEntry = allEntries[safeActiveIndex]
 
   return (
     <div className="flex h-screen flex-col bg-background">
@@ -381,16 +538,17 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
       {/* Map */}
       <div className="relative flex-1">
         <MapView
-          entries={spotEntries}
+          spotEntries={spotEntries}
           routes={routeSegments}
-          activeSpotId={activeSpot?.id ?? null}
+          areaEntries={areaEntries}
+          activeEntry={activeEntry ?? null}
           onMarkerClick={handleMarkerClick}
           onPrevClick={goPrev}
           onNextClick={goNext}
           userLocation={currentLatLng}
           isFollowingLocation={isLocationMode}
         />
-        {/* Top info panel — tapping toggles location mode */}
+        {/* Top info panel */}
         <div className="pointer-events-none absolute top-3 left-1/2 z-[1000] -translate-x-1/2">
           <div
             role="button"
@@ -452,6 +610,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
             </div>
           </div>
         </div>
+
         {/* Digital speedometer — shown only in location mode */}
         {isLocationMode && (
           <div className="absolute bottom-4 left-4 z-[1000] select-none">
@@ -466,10 +625,8 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
                   : 'ring-1 ring-blue-400/30 hover:ring-blue-400/50'
               )}
             >
-              {/* GPS info panel (expanded) */}
               {showGpsInfo && (
                 <div className="mb-2 w-full min-w-[9rem] space-y-1.5 border-b border-[#00e5ff]/20 pb-2">
-                  {/* Altitude */}
                   <div className="flex items-center gap-1.5">
                     <Mountain className="size-3 shrink-0 text-[#00e5ff]/50" />
                     <span className="w-7 text-[9px] font-semibold text-[#00e5ff]/50">高度</span>
@@ -477,7 +634,6 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
                       {currentAltitude !== null ? `${Math.round(currentAltitude)} m` : '—'}
                     </span>
                   </div>
-                  {/* Heading */}
                   <div className="flex items-center gap-1.5">
                     <Navigation2
                       className="size-3 shrink-0 text-[#00e5ff]/50"
@@ -488,7 +644,6 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
                       {currentHeading !== null ? formatHeading(currentHeading) : '—'}
                     </span>
                   </div>
-                  {/* Accuracy */}
                   <div className="flex items-center gap-1.5">
                     <Target className="size-3 shrink-0 text-[#00e5ff]/50" />
                     <span className="w-7 text-[9px] font-semibold text-[#00e5ff]/50">誤差</span>
@@ -498,7 +653,6 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
                   </div>
                 </div>
               )}
-              {/* Speed value */}
               <span className="font-mono text-2xl font-bold leading-none tracking-tight text-[#00e5ff] [text-shadow:0_0_8px_rgba(0,229,255,0.6)]">
                 {currentSpeedKmh !== null ? Math.round(currentSpeedKmh).toString().padStart(3, '\u2007') : '\u2007\u2007\u2014'}
               </span>
@@ -508,6 +662,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
             </button>
           </div>
         )}
+
         {/* Current location button */}
         <button
           type="button"
@@ -524,7 +679,7 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
         </button>
       </div>
 
-      {/* Spot Card */}
+      {/* Bottom card */}
       <div
         className="border-t border-border bg-card px-4 pb-16 pt-4"
         onTouchStart={handleCardTouchStart}
@@ -538,97 +693,57 @@ export default function NavigatePage({ params }: { params: Promise<{ id: string 
               onClick={goPrev}
               disabled={safeActiveIndex === 0}
               className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30"
-              aria-label="前のスポット"
+              aria-label="前のノード"
             >
               <ChevronLeft className="size-5" />
             </button>
             <span className="text-xs text-muted-foreground">
-              {safeActiveIndex + 1} / {allSpots.length}
+              {safeActiveIndex + 1} / {allEntries.length}
             </span>
             <button
               onClick={goNext}
-              disabled={safeActiveIndex === allSpots.length - 1}
+              disabled={safeActiveIndex === allEntries.length - 1}
               className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30"
-              aria-label="次のスポット"
+              aria-label="次のノード"
             >
               <ChevronRight className="size-5" />
             </button>
           </div>
 
-          {/* Spot dots */}
-          <div className="mb-3 flex items-center justify-center gap-1.5">
-            {allSpots.map((spot, idx) => {
+          {/* Node dots */}
+          <div className="mb-3 flex items-center justify-center gap-1.5 overflow-x-auto pb-0.5">
+            {allEntries.map((entry, idx) => {
               const isActive = idx === safeActiveIndex
-              const isDayBoundary = idx > 0 && allSpots[idx - 1].day !== spot.day
+              const prevEntry = allEntries[idx - 1]
+              const isDayBoundary = idx > 0 && entry.node.day !== prevEntry?.node.day
 
               return (
                 <button
-                  key={spot.id}
+                  key={entry.id}
                   onClick={() => { setIsLocationMode(false); setActiveIndex(idx) }}
                   className={cn(
-                    'h-1.5 rounded-full transition-all',
+                    'h-1.5 shrink-0 rounded-full transition-all',
                     isActive
                       ? 'w-4 bg-primary'
-                      : spot.day % 2 === 0
-                        ? 'w-1.5 bg-chart-3/55 hover:bg-chart-3'
-                        : 'w-1.5 bg-chart-1/50 hover:bg-chart-1',
+                      : entry.type === 'area'
+                        ? 'w-1.5 bg-emerald-500/50 hover:bg-emerald-500'
+                        : entry.type === 'move'
+                          ? 'w-1.5 bg-chart-1/50 hover:bg-chart-1'
+                          : entry.node.day % 2 === 0
+                            ? 'w-1.5 bg-chart-3/55 hover:bg-chart-3'
+                            : 'w-1.5 bg-chart-1/50 hover:bg-chart-1',
                     isDayBoundary && !isActive && 'ml-2'
                   )}
-                  aria-label={`Day ${spot.day} ${spot.name}を表示`}
+                  aria-label={`Day ${entry.node.day} ${entry.node.name}を表示`}
                 />
               )
             })}
           </div>
 
-          {/* Active spot details */}
-          <div className="flex min-h-[7.75rem] gap-3">
-            {activeSpot.image && (
-              <img
-                src={activeSpot.image}
-                alt={activeSpot.name}
-                className="h-16 w-20 shrink-0 rounded-lg object-cover"
-                crossOrigin="anonymous"
-              />
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                  Day {activeSpot.day}
-                </span>
-                <Clock className="size-3" />
-                <span>{activeSpot.time} - {activeSpot.endTime}</span>
-              </div>
-              <h3 className="mt-1 truncate font-serif text-base font-bold text-foreground">
-                {activeSpot.name}
-              </h3>
-              <div className="mt-0.5 min-h-[1rem]">
-                {activeSpot.notes && (
-                  <p className="text-xs text-muted-foreground line-clamp-1">{activeSpot.notes}</p>
-                )}
-              </div>
-              <div className="mt-2 h-[5.75rem] overflow-hidden">
-                {(hasVisibleMove(prevMove) || hasVisibleMove(nextMove)) && (
-                  <div className="flex h-full flex-wrap content-start gap-1">
-                    {hasVisibleMove(prevMove) && (
-                      <MoveDirectionBadge
-                        move={prevMove}
-                        directionLabel="← Prev"
-                        accentClassName="text-primary"
-                      />
-                    )}
-                    {hasVisibleMove(nextMove) && (
-                      <MoveDirectionBadge
-                        move={nextMove}
-                        directionLabel="Next →"
-                        accentClassName="text-[var(--chart-3)]"
-                        titleClassName="text-[10px]"
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          {/* Active node details */}
+          {activeEntry?.type === 'spot' && <SpotCard entry={activeEntry} />}
+          {activeEntry?.type === 'move' && <MoveCard entry={activeEntry} />}
+          {activeEntry?.type === 'area' && <AreaCard entry={activeEntry} />}
         </div>
       </div>
 

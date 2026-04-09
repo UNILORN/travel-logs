@@ -122,6 +122,8 @@ export function AddSpotDialog({
   const [searchSessionToken, setSearchSessionToken] = useState('')
   const [isResolvingSpotDetails, setIsResolvingSpotDetails] = useState(false)
   const [movePathMiddlePoints, setMovePathMiddlePoints] = useState<LatLngPoint[]>([])
+  const [moveFromPoint, setMoveFromPoint] = useState<LatLngPoint | undefined>(undefined)
+  const [moveToPoint, setMoveToPoint] = useState<LatLngPoint | undefined>(undefined)
   const isEditingSpot = Boolean(editingSpot)
   const isEditingMove = Boolean(editingMove)
   const isEditingArea = Boolean(editingArea)
@@ -176,19 +178,17 @@ export function AddSpotDialog({
       setLat(null)
       setLng(null)
       setImage(editingMove.image)
-      const moveAnchors = findMoveAnchorSpots(timelineNodes, editingMove.id)
-      const fullPath = buildMovePathPoints(editingMove, {
-        from: moveAnchors.fromSpot ? { lat: moveAnchors.fromSpot.lat, lng: moveAnchors.fromSpot.lng } : undefined,
-        to: moveAnchors.toSpot ? { lat: moveAnchors.toSpot.lat, lng: moveAnchors.toSpot.lng } : undefined,
-      })
-      setMovePathMiddlePoints(
-        extractEditableMiddlePoints(fullPath, {
-          from: moveAnchors.fromSpot
-            ? { lat: moveAnchors.fromSpot.lat, lng: moveAnchors.fromSpot.lng }
-            : undefined,
-          to: moveAnchors.toSpot ? { lat: moveAnchors.toSpot.lat, lng: moveAnchors.toSpot.lng } : undefined,
-        })
-      )
+      const anchors = findMoveAnchorSpots(timelineNodes, editingMove.id)
+      const initFrom = anchors.fromSpot
+        ? { lat: anchors.fromSpot.lat, lng: anchors.fromSpot.lng }
+        : toPoint(editingMove.fromLat, editingMove.fromLng)
+      const initTo = anchors.toSpot
+        ? { lat: anchors.toSpot.lat, lng: anchors.toSpot.lng }
+        : toPoint(editingMove.toLat, editingMove.toLng)
+      setMoveFromPoint(!anchors.fromSpot ? toPoint(editingMove.fromLat, editingMove.fromLng) : undefined)
+      setMoveToPoint(!anchors.toSpot ? toPoint(editingMove.toLat, editingMove.toLng) : undefined)
+      const fullPath = buildMovePathPoints(editingMove, { from: initFrom, to: initTo })
+      setMovePathMiddlePoints(extractEditableMiddlePoints(fullPath, { from: initFrom, to: initTo }))
       return
     }
 
@@ -243,16 +243,20 @@ export function AddSpotDialog({
     setSearchProvider(null)
     setShowSearchDropdown(false)
     setMovePathMiddlePoints([])
+    setMoveFromPoint(undefined)
+    setMoveToPoint(undefined)
   }
 
   const moveAnchors = useMemo(() => {
     if (nodeType !== 'move') {
-      return { from: undefined, to: undefined }
+      return { fromSpot: undefined, toSpot: undefined, from: undefined, to: undefined }
     }
 
     if (editingMove) {
       const { fromSpot, toSpot } = findMoveAnchorSpots(timelineNodes, editingMove.id)
       return {
+        fromSpot,
+        toSpot,
         from: fromSpot ? { lat: fromSpot.lat, lng: fromSpot.lng } : toPoint(editingMove.fromLat, editingMove.fromLng),
         to: toSpot ? { lat: toSpot.lat, lng: toSpot.lng } : toPoint(editingMove.toLat, editingMove.toLng),
       }
@@ -260,6 +264,8 @@ export function AddSpotDialog({
 
     const { fromSpot, toSpot } = findMoveAnchorSpotsByWindow(timelineNodes, { day, time, endTime })
     return {
+      fromSpot,
+      toSpot,
       from: fromSpot ? { lat: fromSpot.lat, lng: fromSpot.lng } : undefined,
       to: toSpot ? { lat: toSpot.lat, lng: toSpot.lng } : undefined,
     }
@@ -396,6 +402,8 @@ export function AddSpotDialog({
         addSpot(tripId, nextSpot)
       }
     } else if (nodeType === 'move') {
+      const effectiveFrom = moveAnchors.fromSpot ? moveAnchors.from : moveFromPoint
+      const effectiveTo = moveAnchors.toSpot ? moveAnchors.to : moveToPoint
       if (editingMove) {
         updateNode(tripId, editingMove.id, {
           name: resolvedName,
@@ -406,10 +414,10 @@ export function AddSpotDialog({
           distance,
           image: resolvedImage,
           notes,
-          fromLat: moveAnchors.from?.lat,
-          fromLng: moveAnchors.from?.lng,
-          toLat: moveAnchors.to?.lat,
-          toLng: moveAnchors.to?.lng,
+          fromLat: effectiveFrom?.lat,
+          fromLng: effectiveFrom?.lng,
+          toLat: effectiveTo?.lat,
+          toLng: effectiveTo?.lng,
           path: movePath,
         })
       } else {
@@ -423,10 +431,10 @@ export function AddSpotDialog({
           distance,
           image: resolvedImage,
           notes,
-          fromLat: moveAnchors.from?.lat,
-          fromLng: moveAnchors.from?.lng,
-          toLat: moveAnchors.to?.lat,
-          toLng: moveAnchors.to?.lng,
+          fromLat: effectiveFrom?.lat,
+          fromLng: effectiveFrom?.lng,
+          toLat: effectiveTo?.lat,
+          toLng: effectiveTo?.lng,
           path: movePath,
         })
       }
@@ -682,17 +690,16 @@ export function AddSpotDialog({
 
           <div className="col-span-2">
             <MovePathEditor
-              startPoint={moveAnchors.from}
-              endPoint={moveAnchors.to}
+              startPoint={moveAnchors.fromSpot ? moveAnchors.from : moveFromPoint}
+              endPoint={moveAnchors.toSpot ? moveAnchors.to : moveToPoint}
+              startLocked={Boolean(moveAnchors.fromSpot)}
+              endLocked={Boolean(moveAnchors.toSpot)}
+              onStartPointChange={!moveAnchors.fromSpot ? setMoveFromPoint : undefined}
+              onEndPointChange={!moveAnchors.toSpot ? setMoveToPoint : undefined}
               middlePoints={movePathMiddlePoints}
               onChange={setMovePathMiddlePoints}
               compact={false}
             />
-            {(!moveAnchors.from || !moveAnchors.to) && (
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                前後のスポットが不足しているため、始点/終点の一部が固定できません。
-              </p>
-            )}
           </div>
         </div>
       ) : nodeType === 'area' ? (

@@ -7,7 +7,7 @@ import type { LatLngPoint } from '@/lib/move-path'
 
 type LeafletModule = typeof import('leaflet')
 
-type EditMode = 'add' | 'remove'
+type EditMode = 'add' | 'remove' | 'set-start' | 'set-end'
 
 interface FullPathItem {
   kind: 'start' | 'middle' | 'end'
@@ -86,12 +86,20 @@ export function MovePathEditor({
   endPoint,
   middlePoints,
   onChange,
+  onStartPointChange,
+  onEndPointChange,
+  startLocked = false,
+  endLocked = false,
   compact = false,
 }: {
   startPoint?: LatLngPoint
   endPoint?: LatLngPoint
   middlePoints: LatLngPoint[]
   onChange: (points: LatLngPoint[]) => void
+  onStartPointChange?: (point: LatLngPoint) => void
+  onEndPointChange?: (point: LatLngPoint) => void
+  startLocked?: boolean
+  endLocked?: boolean
   compact?: boolean
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
@@ -103,6 +111,8 @@ export function MovePathEditor({
   const modeRef = useRef<EditMode>('add')
   const middlePointsRef = useRef<LatLngPoint[]>(middlePoints)
   const onChangeRef = useRef(onChange)
+  const onStartPointChangeRef = useRef(onStartPointChange)
+  const onEndPointChangeRef = useRef(onEndPointChange)
   const suppressMapClickRef = useRef(false)
   const hasFittedRef = useRef(false)
   const [mode, setMode] = useState<EditMode>('add')
@@ -124,6 +134,14 @@ export function MovePathEditor({
   useEffect(() => {
     onChangeRef.current = onChange
   }, [onChange])
+
+  useEffect(() => {
+    onStartPointChangeRef.current = onStartPointChange
+  }, [onStartPointChange])
+
+  useEffect(() => {
+    onEndPointChangeRef.current = onEndPointChange
+  }, [onEndPointChange])
 
   useEffect(() => {
     let disposed = false
@@ -162,11 +180,19 @@ export function MovePathEditor({
           suppressMapClickRef.current = false
           return
         }
-        if (modeRef.current !== 'add') return
+        const newPoint = { lat: event.latlng.lat, lng: event.latlng.lng }
 
-        const nextPoints = [...middlePointsRef.current, { lat: event.latlng.lat, lng: event.latlng.lng }]
-        middlePointsRef.current = nextPoints
-        onChangeRef.current(nextPoints)
+        if (modeRef.current === 'add') {
+          const nextPoints = [...middlePointsRef.current, newPoint]
+          middlePointsRef.current = nextPoints
+          onChangeRef.current(nextPoints)
+        } else if (modeRef.current === 'set-start') {
+          onStartPointChangeRef.current?.(newPoint)
+          setMode('add')
+        } else if (modeRef.current === 'set-end') {
+          onEndPointChangeRef.current?.(newPoint)
+          setMode('add')
+        }
       }
 
       map.on('click', handleMapClick)
@@ -290,17 +316,39 @@ export function MovePathEditor({
     }
 
     if (startPoint) {
-      L.marker([startPoint.lat, startPoint.lng], {
-        icon: createPointIcon(L, '#16a34a', 'Start'),
-        interactive: false,
-      }).addTo(markerLayer)
+      if (startLocked) {
+        L.marker([startPoint.lat, startPoint.lng], {
+          icon: createPointIcon(L, '#16a34a', 'Start'),
+          interactive: false,
+        }).addTo(markerLayer)
+      } else {
+        const startMarker = L.marker([startPoint.lat, startPoint.lng], {
+          icon: createPointIcon(L, '#16a34a', '始点', true),
+          draggable: true,
+        }).addTo(markerLayer)
+        startMarker.on('dragend', (event) => {
+          const latlng = (event.target as import('leaflet').Marker).getLatLng()
+          onStartPointChangeRef.current?.({ lat: latlng.lat, lng: latlng.lng })
+        })
+      }
     }
 
     if (endPoint) {
-      L.marker([endPoint.lat, endPoint.lng], {
-        icon: createPointIcon(L, '#dc2626', 'End'),
-        interactive: false,
-      }).addTo(markerLayer)
+      if (endLocked) {
+        L.marker([endPoint.lat, endPoint.lng], {
+          icon: createPointIcon(L, '#dc2626', 'End'),
+          interactive: false,
+        }).addTo(markerLayer)
+      } else {
+        const endMarker = L.marker([endPoint.lat, endPoint.lng], {
+          icon: createPointIcon(L, '#dc2626', '終点', true),
+          draggable: true,
+        }).addTo(markerLayer)
+        endMarker.on('dragend', (event) => {
+          const latlng = (event.target as import('leaflet').Marker).getLatLng()
+          onEndPointChangeRef.current?.({ lat: latlng.lat, lng: latlng.lng })
+        })
+      }
     }
 
     middlePoints.forEach((point, middleIndex) => {
@@ -310,7 +358,7 @@ export function MovePathEditor({
       }).addTo(markerLayer)
 
       marker.on('dragend', (event) => {
-        const markerLatLng = event.target.getLatLng()
+        const markerLatLng = (event.target as import('leaflet').Marker).getLatLng()
         const nextPoints = [...middlePointsRef.current]
         nextPoints[middleIndex] = { lat: markerLatLng.lat, lng: markerLatLng.lng }
         middlePointsRef.current = nextPoints
@@ -329,36 +377,81 @@ export function MovePathEditor({
       clearDragHandlers()
       lineLayerRef.current?.off()
     }
-  }, [startPoint, endPoint, fullPathItems, middlePoints, isMapReady])
+  }, [startPoint, endPoint, startLocked, endLocked, fullPathItems, middlePoints, isMapReady])
+
+  const canSetStart = Boolean(onStartPointChange)
+  const canSetEnd = Boolean(onEndPointChange)
+
+  const hintText =
+    mode === 'set-start'
+      ? '地図をクリックして始点を設定してください'
+      : mode === 'set-end'
+        ? '地図をクリックして終点を設定してください'
+        : '線上を押したままドラッグすると途中点を追加できます'
 
   return (
     <div className="rounded-md border border-border p-2">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">経路編集: 追加でクリック、削除は点クリック</p>
-        <div className="inline-flex rounded-md border border-border p-0.5">
-          <button
-            type="button"
-            onClick={() => setMode('add')}
-            className={`rounded px-2 py-1 text-xs font-medium ${
-              mode === 'add' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-muted'
-            }`}
-          >
-            追加
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('remove')}
-            className={`rounded px-2 py-1 text-xs font-medium ${
-              mode === 'remove' ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground hover:bg-muted'
-            }`}
-          >
-            削除
-          </button>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">経路編集</p>
+        <div className="flex flex-wrap gap-1">
+          <div className="inline-flex rounded-md border border-border p-0.5">
+            <button
+              type="button"
+              onClick={() => setMode('add')}
+              className={`rounded px-2 py-1 text-xs font-medium ${
+                mode === 'add' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              追加
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('remove')}
+              className={`rounded px-2 py-1 text-xs font-medium ${
+                mode === 'remove' ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              削除
+            </button>
+          </div>
+          {(canSetStart || canSetEnd) && (
+            <div className="inline-flex rounded-md border border-border p-0.5">
+              {canSetStart && (
+                <button
+                  type="button"
+                  onClick={() => setMode(mode === 'set-start' ? 'add' : 'set-start')}
+                  className={`rounded px-2 py-1 text-xs font-medium ${
+                    mode === 'set-start'
+                      ? 'bg-emerald-500/15 text-emerald-700'
+                      : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  始点設定
+                </button>
+              )}
+              {canSetEnd && (
+                <button
+                  type="button"
+                  onClick={() => setMode(mode === 'set-end' ? 'add' : 'set-end')}
+                  className={`rounded px-2 py-1 text-xs font-medium ${
+                    mode === 'set-end'
+                      ? 'bg-red-500/15 text-red-700'
+                      : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  終点設定
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <div ref={mapContainerRef} className={compact ? 'h-[280px] min-h-[280px] w-full rounded-md' : 'h-[44vh] min-h-[320px] w-full rounded-md md:h-[56vh] md:min-h-[520px]'} />
       <p className="mt-2 text-[11px] text-muted-foreground">
-        線上を押したままドラッグすると途中点を追加できます。始点/終点は固定です。
+        {hintText}
+        {(canSetStart || canSetEnd) && !startLocked && !endLocked
+          ? '。始点/終点はドラッグでも移動できます。'
+          : '。始点/終点は固定です。'}
       </p>
     </div>
   )

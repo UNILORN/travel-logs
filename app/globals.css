@@ -212,6 +212,37 @@
   border-top-color: var(--primary);
 }
 
+/* From/To tip markers when a move is the active entry */
+.map-pin-bubble--from {
+  background: color-mix(in srgb, var(--card) 68%, #f97316 32%);
+  border-color: #f97316;
+  color: var(--foreground);
+}
+
+.map-pin-bubble--to {
+  background: color-mix(in srgb, var(--card) 68%, #3b82f6 32%);
+  border-color: #3b82f6;
+  color: var(--foreground);
+}
+
+.map-pin-index--from {
+  background: #f97316;
+  color: #fff;
+}
+
+.map-pin-index--to {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.map-pin-tip--from {
+  border-top-color: #f97316;
+}
+
+.map-pin-tip--to {
+  border-top-color: #3b82f6;
+}
+
 .map-route-overlay {
   position: absolute;
   z-index: 500;

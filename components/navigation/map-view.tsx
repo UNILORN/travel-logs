@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import type { AreaNode, MoveNode } from '@/lib/types'
 import { TRANSPORT_LABELS } from '@/lib/types'
 import type { NavigateEntry, NavigateAreaEntry, NavigateRouteSegment, NavigateSpotEntry } from '@/components/navigation/types'
-import { formatDistanceKm, getTransportRouteStyle, hasVisibleMove } from '@/components/navigation/utils'
+import { formatDistanceKm, getTransportRouteStyle, getActiveTransportRouteStyle, hasVisibleMove } from '@/components/navigation/utils'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -39,23 +39,34 @@ function createLocationMarkerIcon() {
   })
 }
 
-function createSpotMarkerIcon({ sequence, name, isActive }: { sequence: number; name: string; isActive: boolean }) {
-  const title = isActive ? escapeHtml(truncateLabel(name, 12)) : ''
+type SpotMarkerRole = 'active' | 'from' | 'to' | 'default'
+
+function createSpotMarkerIcon({ sequence, name, role }: { sequence: number; name: string; role: SpotMarkerRole }) {
+  const isActive = role === 'active'
+  const isFrom = role === 'from'
+  const isTo = role === 'to'
+  const showLabel = isActive || isFrom || isTo
+  const title = showLabel ? escapeHtml(truncateLabel(name, 12)) : ''
+
+  const bubbleMod = isActive ? ' map-pin-bubble--active' : isFrom ? ' map-pin-bubble--from' : isTo ? ' map-pin-bubble--to' : ''
+  const indexMod = isActive ? ' map-pin-index--active' : isFrom ? ' map-pin-index--from' : isTo ? ' map-pin-index--to' : ''
+  const tipMod = isActive ? ' map-pin-tip--active' : isFrom ? ' map-pin-tip--from' : isTo ? ' map-pin-tip--to' : ''
+
   const html = `
     <div class="map-pin-shell${isActive ? ' map-pin-shell--active' : ''}">
-      <span class="map-pin-bubble${isActive ? ' map-pin-bubble--active' : ''}">
-        <span class="map-pin-index${isActive ? ' map-pin-index--active' : ''}">${sequence}</span>
-        ${isActive ? `<span class="map-pin-title">${title}</span>` : ''}
+      <span class="map-pin-bubble${bubbleMod}">
+        <span class="map-pin-index${indexMod}">${sequence}</span>
+        ${showLabel ? `<span class="map-pin-title">${title}</span>` : ''}
       </span>
-      <span class="map-pin-tip${isActive ? ' map-pin-tip--active' : ''}"></span>
+      <span class="map-pin-tip${tipMod}"></span>
     </div>
   `
 
   return L.divIcon({
     html,
     className: 'map-pin-icon',
-    iconSize: isActive ? [160, 60] : [44, 48],
-    iconAnchor: isActive ? [80, 58] : [22, 46],
+    iconSize: showLabel ? [160, 60] : [44, 48],
+    iconAnchor: showLabel ? [80, 58] : [22, 46],
   })
 }
 
@@ -120,6 +131,10 @@ export function MapView({
 
   // Derive the spot ID that is actively "selected" (null when a move/area is active)
   const activeSpotId = activeEntry?.type === 'spot' ? activeEntry.id : null
+  const activeMoveEntry = activeEntry?.type === 'move' ? activeEntry : null
+  const fromSpotId = activeMoveEntry?.fromSpot?.id
+  const toSpotId = activeMoveEntry?.toSpot?.id
+  const activeMoveId = activeMoveEntry?.id ?? null
 
   const activeSpotEntry = useMemo(
     () => (activeEntry?.type === 'spot' ? activeEntry : null),
@@ -214,32 +229,55 @@ export function MapView({
 
     // Add spot markers
     spotEntries.forEach((entry) => {
-      const isActive = entry.id === activeSpotId
+      const role: SpotMarkerRole =
+        entry.id === activeSpotId
+          ? 'active'
+          : entry.id === fromSpotId
+            ? 'from'
+            : entry.id === toSpotId
+              ? 'to'
+              : 'default'
       const marker = L.marker([entry.node.lat, entry.node.lng], {
         icon: createSpotMarkerIcon({
           sequence: entry.sequence,
           name: entry.node.name,
-          isActive,
+          role,
         }),
-        zIndexOffset: isActive ? 1000 : entry.sequence,
+        zIndexOffset: role === 'active' ? 1000 : role === 'from' || role === 'to' ? 500 : entry.sequence,
       }).addTo(map)
 
       marker.on('click', () => onMarkerClickRef.current(entry.id))
       markersRef.current.push(marker)
     })
 
-    // Add route polylines
+    // Add route polylines — active route gets a glow layer + thicker stroke
     for (const route of routes) {
       if (route.points.length < 2) continue
-      const style = getTransportRouteStyle(route.move.transport)
+      const isActiveLine = route.id === activeMoveId
+      const style = isActiveLine
+        ? getActiveTransportRouteStyle(route.move.transport)
+        : getTransportRouteStyle(route.move.transport)
       const latlngs: L.LatLngExpression[] = route.points.map((point) => [point.lat, point.lng])
+
+      if (isActiveLine) {
+        // Glow / halo layer beneath the main stroke
+        const glowLine = L.polyline(latlngs, {
+          color: style.color,
+          weight: 16,
+          opacity: 0.22,
+          interactive: false,
+          dashArray: style.dashArray,
+        }).addTo(map)
+        polylineRef.current.push(glowLine)
+      }
+
       const polyline = L.polyline(latlngs, {
         ...style,
         interactive: false,
       }).addTo(map)
       polylineRef.current.push(polyline)
     }
-  }, [spotEntries, routes, activeSpotId])
+  }, [spotEntries, routes, activeSpotId, fromSpotId, toSpotId, activeMoveId])
 
   // Update area polygons
   useEffect(() => {

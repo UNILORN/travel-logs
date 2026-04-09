@@ -170,9 +170,21 @@ function MoveCard({ entry }: { entry: NavigateMoveEntry }) {
           {TRANSPORT_LABELS[node.transport]}{node.distance > 0 ? ` · ${formatDistanceKm(node.distance)}` : ''}
         </p>
         {(fromSpot ?? toSpot) && (
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            {fromSpot ? fromSpot.name : '?'} → {toSpot ? toSpot.name : '?'}
-          </p>
+          <div className="mt-2 flex items-center gap-1">
+            <div className="flex min-w-0 flex-1 items-center gap-1 rounded-lg bg-orange-500/12 px-2 py-1 border border-orange-400/30">
+              <span className="shrink-0 text-[9px] font-bold tracking-wide text-orange-500 uppercase">From</span>
+              <span className="min-w-0 truncate text-[10px] font-semibold text-foreground">
+                {fromSpot ? fromSpot.name : '—'}
+              </span>
+            </div>
+            <span className="shrink-0 text-[11px] text-muted-foreground">→</span>
+            <div className="flex min-w-0 flex-1 items-center gap-1 rounded-lg bg-blue-500/12 px-2 py-1 border border-blue-400/30">
+              <span className="shrink-0 text-[9px] font-bold tracking-wide text-blue-500 uppercase">To</span>
+              <span className="min-w-0 truncate text-[10px] font-semibold text-foreground">
+                {toSpot ? toSpot.name : '—'}
+              </span>
+            </div>
+          </div>
         )}
         {node.notes && (
           <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{node.notes}</p>

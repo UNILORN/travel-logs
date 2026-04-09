@@ -8,6 +8,11 @@ export function formatDistanceKm(distance: number) {
   return `${distance.toLocaleString('ja-JP', { maximumFractionDigits: 1 })}km`
 }
 
+export function getActiveTransportRouteStyle(transport: TransportType) {
+  const base = getTransportRouteStyle(transport)
+  return { ...base, weight: 7, opacity: 1 }
+}
+
 export function getTransportRouteStyle(transport: TransportType) {
   switch (transport) {
     case 'train':

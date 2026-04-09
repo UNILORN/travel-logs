@@ -10,6 +10,10 @@ const AreaPolygonEditor = dynamic(
   () => import('@/components/itinerary/area-polygon-editor').then((m) => m.AreaPolygonEditor),
   { ssr: false, loading: () => <div className="h-56 rounded-lg border border-border bg-muted/30" /> }
 )
+const SpotLocationPicker = dynamic(
+  () => import('@/components/itinerary/spot-location-picker').then((m) => m.SpotLocationPicker),
+  { ssr: false, loading: () => <div className="h-[220px] rounded-md border border-border bg-muted/30" /> }
+)
 import {
   buildMovePathPoints,
   extractEditableMiddlePoints,
@@ -124,6 +128,7 @@ export function AddSpotDialog({
   const [movePathMiddlePoints, setMovePathMiddlePoints] = useState<LatLngPoint[]>([])
   const [moveFromPoint, setMoveFromPoint] = useState<LatLngPoint | undefined>(undefined)
   const [moveToPoint, setMoveToPoint] = useState<LatLngPoint | undefined>(undefined)
+  const [showLocationPicker, setShowLocationPicker] = useState(false)
   const isEditingSpot = Boolean(editingSpot)
   const isEditingMove = Boolean(editingMove)
   const isEditingArea = Boolean(editingArea)
@@ -161,6 +166,7 @@ export function AddSpotDialog({
       setLat(editingSpot.lat)
       setLng(editingSpot.lng)
       setImage(editingSpot.image)
+      setShowLocationPicker(true)
       return
     }
 
@@ -225,6 +231,7 @@ export function AddSpotDialog({
     setLng(null)
     setImage('')
     setMovePathMiddlePoints([])
+    setShowLocationPicker(false)
   }, [open, defaultDay, defaultTime, defaultEndTime, defaultNodeType, editingSpot, editingMove, editingArea, timelineNodes])
 
   const resetForm = () => {
@@ -245,6 +252,7 @@ export function AddSpotDialog({
     setMovePathMiddlePoints([])
     setMoveFromPoint(undefined)
     setMoveToPoint(undefined)
+    setShowLocationPicker(false)
   }
 
   const moveAnchors = useMemo(() => {
@@ -617,6 +625,34 @@ export function AddSpotDialog({
           <p className="text-xs text-muted-foreground">座標を取得中...</p>
         )}
       </div>
+
+      {nodeType === 'spot' && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <Label>位置情報</Label>
+            <button
+              type="button"
+              onClick={() => setShowLocationPicker((v) => !v)}
+              className="text-xs text-primary hover:underline"
+            >
+              {showLocationPicker ? '地図を閉じる' : (lat != null && lng != null ? '地図で編集' : '地図で設定')}
+            </button>
+          </div>
+          {showLocationPicker && (
+            <SpotLocationPicker
+              lat={lat}
+              lng={lng}
+              onChange={(newLat, newLng) => {
+                setLat(newLat)
+                setLng(newLng)
+              }}
+            />
+          )}
+          {!showLocationPicker && lat != null && lng != null && (
+            <p className="text-xs text-muted-foreground">{lat.toFixed(6)}, {lng.toFixed(6)}</p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-3">
         <div className="flex flex-col gap-1.5">

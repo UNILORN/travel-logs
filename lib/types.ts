@@ -91,6 +91,8 @@ export interface AreaNode {
   day: number
   spotNames: string[]
   notes: string
+  /** Optional polygon vertices for map display (lat/lng pairs in drawing order) */
+  polygon?: Array<{ lat: number; lng: number }>
 }
 
 export type TimelineNode = SpotNode | MoveNode | AreaNode

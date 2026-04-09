@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import type { AreaNode, MoveNode } from '@/lib/types'
 import { TRANSPORT_LABELS } from '@/lib/types'
-import type { NavigateMapEntry, NavigateRouteSegment } from '@/components/navigation/types'
+import type { NavigateEntry, NavigateAreaEntry, NavigateRouteSegment, NavigateSpotEntry } from '@/components/navigation/types'
 import { formatDistanceKm, getTransportRouteStyle, hasVisibleMove } from '@/components/navigation/utils'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -87,18 +87,20 @@ type RouteChip = (ReturnType<typeof buildRouteChip> | ReturnType<typeof buildAre
 }
 
 export function MapView({
-  entries,
+  spotEntries,
   routes,
-  activeSpotId,
+  areaEntries,
+  activeEntry,
   onMarkerClick,
   onPrevClick,
   onNextClick,
   userLocation,
   isFollowingLocation,
 }: {
-  entries: NavigateMapEntry[]
+  spotEntries: NavigateSpotEntry[]
   routes: NavigateRouteSegment[]
-  activeSpotId: string | null
+  areaEntries: NavigateAreaEntry[]
+  activeEntry: NavigateEntry | null
   onMarkerClick: (spotId: string) => void
   onPrevClick: () => void
   onNextClick: () => void
@@ -110,22 +112,27 @@ export function MapView({
   const containerRef = useRef<HTMLDivElement>(null)
   const markersRef = useRef<L.Marker[]>([])
   const polylineRef = useRef<L.Polyline[]>([])
+  const areaPolygonsRef = useRef<L.Polygon[]>([])
   const locationMarkerRef = useRef<L.Marker | null>(null)
   const onMarkerClickRef = useRef(onMarkerClick)
   const [activeAnchorPoint, setActiveAnchorPoint] = useState<AnchorPoint | null>(null)
   onMarkerClickRef.current = onMarkerClick
 
-  const activeEntry = useMemo(
-    () => entries.find((entry) => entry.spot.id === activeSpotId) ?? null,
-    [entries, activeSpotId]
+  // Derive the spot ID that is actively "selected" (null when a move/area is active)
+  const activeSpotId = activeEntry?.type === 'spot' ? activeEntry.id : null
+
+  const activeSpotEntry = useMemo(
+    () => (activeEntry?.type === 'spot' ? activeEntry : null),
+    [activeEntry]
   )
-  const prevMove = activeEntry?.prevMove
-  const nextMove = activeEntry?.nextMove
-  const prevArea = activeEntry?.prevArea
-  const nextArea = activeEntry?.nextArea
+  const prevMove = activeSpotEntry?.prevMove
+  const nextMove = activeSpotEntry?.nextMove
+  const prevArea = activeSpotEntry?.prevArea
+  const nextArea = activeSpotEntry?.nextArea
   const visiblePrevMove = hasVisibleMove(prevMove) ? prevMove : undefined
   const visibleNextMove = hasVisibleMove(nextMove) ? nextMove : undefined
   const routeChips = useMemo(() => {
+    if (!activeSpotEntry) return []
     const chips: RouteChip[] = []
 
     if (visiblePrevMove) {
@@ -161,14 +168,16 @@ export function MapView({
     }
 
     return chips
-  }, [nextArea, onNextClick, onPrevClick, prevArea, visiblePrevMove, visibleNextMove])
+  }, [nextArea, onNextClick, onPrevClick, prevArea, visiblePrevMove, visibleNextMove, activeSpotEntry])
 
   // Initialize map
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
 
     const center: L.LatLngExpression =
-      entries.length > 0 ? [entries[0].spot.lat, entries[0].spot.lng] : [35.6762, 139.6503]
+      spotEntries.length > 0
+        ? [spotEntries[0].node.lat, spotEntries[0].node.lng]
+        : [35.6762, 139.6503]
 
     const map = L.map(containerRef.current, {
       center,
@@ -192,33 +201,34 @@ export function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Update markers
+  // Update spot markers and route polylines
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
 
-    // Clear existing markers
+    // Clear existing markers and polylines
     markersRef.current.forEach((marker) => marker.remove())
     markersRef.current = []
     polylineRef.current.forEach((polyline) => polyline.remove())
     polylineRef.current = []
 
-    // Add new markers
-    entries.forEach((entry) => {
-      const isActive = entry.spot.id === activeSpotId
-      const marker = L.marker([entry.spot.lat, entry.spot.lng], {
+    // Add spot markers
+    spotEntries.forEach((entry) => {
+      const isActive = entry.id === activeSpotId
+      const marker = L.marker([entry.node.lat, entry.node.lng], {
         icon: createSpotMarkerIcon({
           sequence: entry.sequence,
-          name: entry.spot.name,
+          name: entry.node.name,
           isActive,
         }),
         zIndexOffset: isActive ? 1000 : entry.sequence,
       }).addTo(map)
 
-      marker.on('click', () => onMarkerClickRef.current(entry.spot.id))
+      marker.on('click', () => onMarkerClickRef.current(entry.id))
       markersRef.current.push(marker)
     })
 
+    // Add route polylines
     for (const route of routes) {
       if (route.points.length < 2) continue
       const style = getTransportRouteStyle(route.move.transport)
@@ -229,16 +239,63 @@ export function MapView({
       }).addTo(map)
       polylineRef.current.push(polyline)
     }
-  }, [entries, routes, activeSpotId])
+  }, [spotEntries, routes, activeSpotId])
 
-  // Pan to active spot (skip when following current location)
+  // Update area polygons
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !activeSpotId || isFollowingLocation) return
-    if (activeEntry) {
-      map.flyTo([activeEntry.spot.lat, activeEntry.spot.lng], 14, { duration: 0.8 })
+    if (!map) return
+
+    areaPolygonsRef.current.forEach((p) => p.remove())
+    areaPolygonsRef.current = []
+
+    const isActiveArea = activeEntry?.type === 'area'
+
+    areaEntries.forEach((entry) => {
+      const polygon = entry.node.polygon
+      if (!polygon || polygon.length < 3) return
+
+      const isActive = isActiveArea && entry.id === activeEntry?.id
+      const latlngs = polygon.map((p) => [p.lat, p.lng] as L.LatLngExpression)
+      const poly = L.polygon(latlngs, {
+        color: isActive ? '#10b981' : '#6ee7b7',
+        fillColor: isActive ? '#10b981' : '#a7f3d0',
+        fillOpacity: isActive ? 0.25 : 0.12,
+        weight: isActive ? 2.5 : 1.5,
+        interactive: false,
+      }).addTo(map)
+      areaPolygonsRef.current.push(poly)
+    })
+  }, [areaEntries, activeEntry])
+
+  // Pan / fit bounds when active entry changes
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || isFollowingLocation) return
+    if (!activeEntry) return
+
+    if (activeEntry.type === 'spot') {
+      map.flyTo([activeEntry.node.lat, activeEntry.node.lng], 14, { duration: 0.8 })
+    } else if (activeEntry.type === 'move') {
+      if (activeEntry.routePoints.length >= 2) {
+        const latlngs = activeEntry.routePoints.map((p) => [p.lat, p.lng] as L.LatLngExpression)
+        const bounds = L.latLngBounds(latlngs)
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15, animate: true, duration: 0.8 })
+      } else if (activeEntry.fromSpot && activeEntry.toSpot) {
+        const bounds = L.latLngBounds([
+          [activeEntry.fromSpot.lat, activeEntry.fromSpot.lng],
+          [activeEntry.toSpot.lat, activeEntry.toSpot.lng],
+        ])
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15, animate: true, duration: 0.8 })
+      }
+    } else if (activeEntry.type === 'area') {
+      const polygon = activeEntry.node.polygon
+      if (polygon && polygon.length >= 3) {
+        const bounds = L.latLngBounds(polygon.map((p) => [p.lat, p.lng] as L.LatLngExpression))
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 17, animate: true, duration: 0.8 })
+      }
     }
-  }, [activeSpotId, activeEntry, isFollowingLocation])
+  }, [activeEntry, isFollowingLocation])
 
   // Update current location marker and pan when following
   useEffect(() => {
@@ -268,17 +325,18 @@ export function MapView({
     }
   }, [userLocation, isFollowingLocation])
 
-  // Keep the route overlay aligned with the active marker while the map moves.
+  // Keep the route overlay aligned with the active spot marker while the map moves.
+  // Only shown when a spot is the active entry.
   useEffect(() => {
     const map = mapRef.current
     const frame = frameRef.current
-    if (!map || !frame || !activeEntry) {
+    if (!map || !frame || !activeSpotEntry) {
       setActiveAnchorPoint(null)
       return
     }
 
     const updateAnchorPoint = () => {
-      const point = map.latLngToContainerPoint([activeEntry.spot.lat, activeEntry.spot.lng])
+      const point = map.latLngToContainerPoint([activeSpotEntry.node.lat, activeSpotEntry.node.lng])
       const horizontalPadding = Math.min(112, frame.clientWidth / 2)
       const topPadding = Math.min(132, frame.clientHeight / 2)
 
@@ -298,7 +356,7 @@ export function MapView({
       map.off('zoom', updateAnchorPoint)
       map.off('resize', updateAnchorPoint)
     }
-  }, [activeEntry])
+  }, [activeSpotEntry])
 
   return (
     <div

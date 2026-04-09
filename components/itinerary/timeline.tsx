@@ -19,6 +19,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import type {
+  AreaNode,
   MoveNode,
   Spot,
   TimelineNode,
@@ -80,6 +81,7 @@ function NodeBlock({
   spot?: Spot
   onEditSpot?: (spot: Spot) => void
   onEditMove?: (node: MoveNode) => void
+  onEditArea?: (node: AreaNode) => void
 }) {
   const { removeSpot, removeNode } = useTripContext()
 
@@ -166,13 +168,24 @@ function NodeBlock({
                 <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium">エリア</span>
               </div>
               {isEditable && (
-                <button
-                  onClick={() => removeNode(tripId, node.id)}
-                  className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                  aria-label={`${node.name}エリアを削除`}
-                >
-                  <Trash2 className="size-3" />
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  {onEditArea && (
+                    <button
+                      onClick={() => onEditArea(node)}
+                      className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-emerald-500/10 hover:text-emerald-700"
+                      aria-label={`${node.name}を編集`}
+                    >
+                      <Pencil className="size-3" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => removeNode(tripId, node.id)}
+                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={`${node.name}エリアを削除`}
+                  >
+                    <Trash2 className="size-3" />
+                  </button>
+                </div>
               )}
             </div>
             <h4 className="mt-1 font-serif text-sm font-bold text-foreground">{node.name}</h4>
@@ -384,6 +397,7 @@ export function Timeline({
   onAddNode,
   onEditSpot,
   onEditMove,
+  onEditArea,
   columns = 1,
 }: {
   trip: Trip
@@ -391,6 +405,7 @@ export function Timeline({
   onAddNode: (draft: TimelineInsertDraft) => void
   onEditSpot?: (spot: Spot) => void
   onEditMove?: (node: MoveNode) => void
+  onEditArea?: (node: AreaNode) => void
   columns?: number
 }) {
   const dayCount =
@@ -477,6 +492,7 @@ export function Timeline({
                         spot={getEditableSpot(node)}
                         onEditSpot={onEditSpot}
                         onEditMove={onEditMove}
+                        onEditArea={onEditArea}
                       />
                       {isEditable && nextNode && (
                         <FreeTimeBlock

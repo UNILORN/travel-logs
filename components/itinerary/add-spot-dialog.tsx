@@ -1,9 +1,15 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { X } from 'lucide-react'
 import { useTripContext } from '@/lib/trip-context'
-import { TRANSPORT_LABELS, type MoveNode, type Spot, type TransportType } from '@/lib/types'
+import { TRANSPORT_LABELS, type AreaNode, type MoveNode, type Spot, type TransportType } from '@/lib/types'
+
+const AreaPolygonEditor = dynamic(
+  () => import('@/components/itinerary/area-polygon-editor').then((m) => m.AreaPolygonEditor),
+  { ssr: false, loading: () => <div className="h-56 rounded-lg border border-border bg-muted/30" /> }
+)
 import {
   buildMovePathPoints,
   extractEditableMiddlePoints,
@@ -78,6 +84,7 @@ export function AddSpotDialog({
   defaultNodeType = 'spot',
   editingSpot = null,
   editingMove = null,
+  editingArea = null,
   mode = 'dialog',
 }: {
   tripId: string
@@ -89,6 +96,7 @@ export function AddSpotDialog({
   defaultNodeType?: AddNodeKind
   editingSpot?: Spot | null
   editingMove?: MoveNode | null
+  editingArea?: AreaNode | null
   mode?: 'dialog' | 'sidebar'
 }) {
   const { addSpot, addNode, updateSpot, updateNode, getTrip } = useTripContext()
@@ -101,6 +109,7 @@ export function AddSpotDialog({
   const [transport, setTransport] = useState<SpotTransport>('train')
   const [distance, setDistance] = useState(0)
   const [areaSpotsText, setAreaSpotsText] = useState('')
+  const [areaPolygon, setAreaPolygon] = useState<Array<{ lat: number; lng: number }> | undefined>(undefined)
   const [address, setAddress] = useState('')
   const [lat, setLat] = useState<number | null>(null)
   const [lng, setLng] = useState<number | null>(null)
@@ -115,7 +124,8 @@ export function AddSpotDialog({
   const [movePathMiddlePoints, setMovePathMiddlePoints] = useState<LatLngPoint[]>([])
   const isEditingSpot = Boolean(editingSpot)
   const isEditingMove = Boolean(editingMove)
-  const isEditingNode = isEditingSpot || isEditingMove
+  const isEditingArea = Boolean(editingArea)
+  const isEditingNode = isEditingSpot || isEditingMove || isEditingArea
   const dialogContentClassName = isEditingMove
     ? 'h-[92vh] w-[98vw] max-w-[98vw] overflow-y-auto sm:max-w-[1400px]'
     : 'max-h-[90vh] w-[94vw] max-w-[94vw] overflow-y-auto sm:max-w-4xl'
@@ -182,6 +192,24 @@ export function AddSpotDialog({
       return
     }
 
+    if (editingArea) {
+      setNodeType('area')
+      setName(editingArea.name)
+      setTime(editingArea.time)
+      setEndTime(editingArea.endTime)
+      setDay(editingArea.day)
+      setNotes(editingArea.notes)
+      setAreaSpotsText(editingArea.spotNames.join('\n'))
+      setAreaPolygon(editingArea.polygon)
+      setTransport('train')
+      setDistance(0)
+      setAddress('')
+      setLat(null)
+      setLng(null)
+      setImage('')
+      return
+    }
+
     setDay(defaultDay)
     setTime(defaultTime ?? '10:00')
     setEndTime(defaultEndTime ?? '12:00')
@@ -191,12 +219,13 @@ export function AddSpotDialog({
     setNotes('')
     setDistance(0)
     setAreaSpotsText('')
+    setAreaPolygon(undefined)
     setAddress('')
     setLat(null)
     setLng(null)
     setImage('')
     setMovePathMiddlePoints([])
-  }, [open, defaultDay, defaultTime, defaultEndTime, defaultNodeType, editingSpot, editingMove, timelineNodes])
+  }, [open, defaultDay, defaultTime, defaultEndTime, defaultNodeType, editingSpot, editingMove, editingArea, timelineNodes])
 
   const resetForm = () => {
     setName('')
@@ -204,6 +233,7 @@ export function AddSpotDialog({
     setTransport('train')
     setDistance(0)
     setAreaSpotsText('')
+    setAreaPolygon(undefined)
     setAddress('')
     setLat(null)
     setLng(null)
@@ -234,6 +264,11 @@ export function AddSpotDialog({
       to: toSpot ? { lat: toSpot.lat, lng: toSpot.lng } : undefined,
     }
   }, [day, editingMove, endTime, nodeType, time, timelineNodes])
+
+  const areaInitialCenter = useMemo(() => {
+    const firstSpot = timelineNodes.find((n) => n.type === 'spot') as import('@/lib/types').SpotNode | undefined
+    return firstSpot ? { lat: firstSpot.lat, lng: firstSpot.lng } : undefined
+  }, [timelineNodes])
 
   useEffect(() => {
     if (!canSearchSpot) {
@@ -401,22 +436,28 @@ export function AddSpotDialog({
         .map((line) => line.trim())
         .filter(Boolean)
 
-      addNode(tripId, {
-        type: 'area',
+      const areaData = {
         name: resolvedName,
         time,
         endTime,
         day,
         notes,
         spotNames,
-      })
+        polygon: areaPolygon,
+      }
+
+      if (editingArea) {
+        updateNode(tripId, editingArea.id, areaData)
+      } else {
+        addNode(tripId, { type: 'area', ...areaData })
+      }
     }
 
     onOpenChange(false)
     resetForm()
   }
 
-  const title = isEditingSpot ? 'スポットを編集' : isEditingMove ? '移動を編集' : 'ノードを追加'
+  const title = isEditingSpot ? 'スポットを編集' : isEditingMove ? '移動を編集' : isEditingArea ? 'エリアを編集' : 'ノードを追加'
   const saveDisabled =
     (!name.trim() && nodeType !== 'move') || (nodeType === 'spot' && isResolvingSpotDetails)
   const saveLabel =
@@ -426,11 +467,13 @@ export function AddSpotDialog({
         ? 'スポットを保存'
         : isEditingMove
           ? '移動を保存'
-          : nodeType === 'spot'
-            ? 'スポットを追加'
-            : nodeType === 'move'
-              ? '移動を追加'
-              : 'エリアを追加'
+          : isEditingArea
+            ? 'エリアを保存'
+            : nodeType === 'spot'
+              ? 'スポットを追加'
+              : nodeType === 'move'
+                ? '移動を追加'
+                : 'エリアを追加'
 
   const formBody = (
     <div className="flex flex-col gap-4">
@@ -653,15 +696,25 @@ export function AddSpotDialog({
           </div>
         </div>
       ) : nodeType === 'area' ? (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="area-spots">このエリアで回りたいスポット（順不同）</Label>
-          <Textarea
-            id="area-spots"
-            rows={4}
-            placeholder={'例:\n八坂神社\n花見小路\nカフェ休憩'}
-            value={areaSpotsText}
-            onChange={(e) => setAreaSpotsText(e.target.value)}
-          />
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="area-spots">このエリアで回りたいスポット（順不同）</Label>
+            <Textarea
+              id="area-spots"
+              rows={3}
+              placeholder={'例:\n八坂神社\n花見小路\nカフェ休憩'}
+              value={areaSpotsText}
+              onChange={(e) => setAreaSpotsText(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>エリアの地図 <span className="font-normal text-muted-foreground">（任意）</span></Label>
+            <AreaPolygonEditor
+              polygon={areaPolygon}
+              onChange={setAreaPolygon}
+              initialCenter={areaInitialCenter}
+            />
+          </div>
         </div>
       ) : (
         <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">

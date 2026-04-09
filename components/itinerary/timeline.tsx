@@ -73,6 +73,7 @@ function NodeBlock({
   spot,
   onEditSpot,
   onEditMove,
+  onEditArea,
 }: {
   node: TimelineNode
   tripId: string

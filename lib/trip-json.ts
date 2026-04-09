@@ -82,6 +82,7 @@ const areaNodeInputSchema = z
     day: z.number().int().min(1),
     spotNames: z.array(z.string()),
     notes: z.string(),
+    polygon: z.array(latLngPointSchema).optional(),
   })
   .strict()
 

@@ -1,13 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { BookOpen, Map, Wallet, Navigation, BarChart3, ClipboardList } from 'lucide-react'
+import { BookOpen, Map, Wallet, Navigation, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { buildTripPageHref, type TripPageSection } from '@/lib/trip-route'
 
 const navItems = [
   { icon: BookOpen, label: '本棚', key: 'home' },
-  { icon: ClipboardList, label: 'Brief', key: 'brief' },
   { icon: Map, label: '旅程', key: 'edit' },
   { icon: Wallet, label: '予算', key: 'budget' },
   { icon: Navigation, label: 'ナビ', key: 'navigate' },

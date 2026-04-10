@@ -1,6 +1,6 @@
 export const TRIP_ROUTE_FALLBACK_ID = 'hakone-weekend'
 
-export type TripPageSection = 'edit' | 'budget' | 'navigate' | 'report' | 'brief'
+export type TripPageSection = 'edit' | 'budget' | 'navigate' | 'report'
 
 export function buildTripPageHref(tripId: string, section: TripPageSection) {
   const encodedTripId = encodeURIComponent(tripId)

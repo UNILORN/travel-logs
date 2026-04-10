@@ -5,7 +5,7 @@ import { useTripContext } from '@/lib/trip-context'
 import type { Trip } from '@/lib/types'
 import { STATUS_LABELS } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
-import { Archive, Clipboard, MapPinned, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { Archive, Clipboard, MapPinned, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { NewTripDialog } from '@/components/bookshelf/new-trip-dialog'
 import { TripClipboardDialog } from '@/components/bookshelf/trip-clipboard-dialog'
@@ -115,7 +115,6 @@ export default function BookshelfPage() {
 
   const planningTrips = trips.filter((t) => t.status !== 'archived')
   const archivedTrips = trips.filter((t) => t.status === 'archived')
-  const activeTripCount = trips.filter((t) => t.status === 'traveling').length
 
   const handleDeleteTrip = (trip: Trip) => {
     setDeleteTargetTrip(trip)
@@ -137,35 +136,6 @@ export default function BookshelfPage() {
       </header>
 
       <main className="relative mx-auto max-w-md px-4 pb-24 pt-6">
-        <section className="mb-6 rounded-3xl border border-border/70 bg-gradient-to-br from-card via-card/95 to-secondary/25 p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary">
-              <Sparkles className="size-3.5" />
-              今日の旅ログ
-            </p>
-            <p className="text-[11px] text-muted-foreground">次の旅を育てよう</p>
-          </div>
-          <h2 className="font-serif text-2xl font-bold leading-tight text-foreground">
-            思い出も計画も、
-            <br />
-            かわいく整理する本棚
-          </h2>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-2xl border border-border/60 bg-background/65 p-2.5">
-              <p className="text-lg font-bold text-foreground">{trips.length}</p>
-              <p className="text-[10px] text-muted-foreground">すべての旅</p>
-            </div>
-            <div className="rounded-2xl border border-border/60 bg-background/65 p-2.5">
-              <p className="text-lg font-bold text-foreground">{activeTripCount}</p>
-              <p className="text-[10px] text-muted-foreground">進行中</p>
-            </div>
-            <div className="rounded-2xl border border-border/60 bg-background/65 p-2.5">
-              <p className="text-lg font-bold text-foreground">{archivedTrips.length}</p>
-              <p className="text-[10px] text-muted-foreground">アーカイブ</p>
-            </div>
-          </div>
-        </section>
-
         {isPagesPrPreview && (
           <div className="mb-4 rounded-xl border border-border bg-muted/50 p-3 text-xs text-muted-foreground">
             PRプレビューでは GitHub Pages の静的配信制約により、新規旅作成とスポット検索を無効化しています。
